@@ -1,15 +1,15 @@
 [tool.black]
-line-length = 80
+line-length = 88
 target-version = ["py310"]
 
-[tool.isort]
-profile = "black"
-line_length = 80
-
 [tool.ruff]
-line-length = 80
+line-length = 88
 target-version = "py310"
-fix = true
+fix = true  # Auto-fix issues like formatting & import sorting
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "B"]
+select = ["E", "F", "I", "B"]  # I = isort-compatible rules
+ignore = []
+
+[tool.ruff.per-file-ignores]
+"**/__init__.py" = ["F401"]  # Allow unused imports in __init__.py
