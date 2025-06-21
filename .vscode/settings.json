@@ -3,20 +3,16 @@
     "python.analysis.typeCheckingMode": "basic",
     "python.analysis.autoSearchPaths": true,
     "python.analysis.useLibraryCodeForTypes": true,
-    // Enable Ruff (assumes it's on PATH)
-    "ruff.enable": true,
-    "ruff.path": [
-        "ruff"
-    ],
+    "python.terminal.activateEnvironment": true,
     // Black formatter config
     "black-formatter.args": [
-        "--line-length=99"
+        "--line-length=80"
     ],
     // Format + fix imports on save
     "editor.formatOnSave": true,
     "editor.codeActionsOnSave": {
         "source.organizeImports": "always",
-        "source.fixAll": "explicit",
+        "source.fixAll": "always",
         "source.fixAll.ruff": "always"
     },
     // Python-specific editor settings
@@ -32,5 +28,5 @@
         "editor.defaultFormatter": "ms-python.black-formatter",
         "editor.formatOnType": true,
         "editor.tabSize": 4
-    }
+    },
 }

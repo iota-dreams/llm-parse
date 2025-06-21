@@ -1,30 +1,48 @@
 import os
-import time
+import re
 
-d = time.time()
-
-a = os.getcwd()
-
-a = 1
-b = 2  # noqa
-
-if a == b:
-    print("hi")
+from setuptools import find_packages, setup
 
 
-def abc(a, b):
-    """_summary_
+def read_version():
+    version_file = os.path.join(
+        os.path.dirname(__file__), "src", "llm-parse", "version.py"
+    )
+    with open(version_file, "r") as f:
+        content = f.read()
+    version_match = re.search(
+        r"^__version__ = ['\"]([^'\"]*)['\"]", content, re.M
+    )
+    if version_match:
+        return version_match.group(1)
+    raise RuntimeError("Unable to find version string.")
 
-    Parameters
-    ----------
-    a : _type_
-        _description_
-    b : _type_
-        _description_
 
-    Returns
-    -------
-    _type_
-        _description_
-    """
-    return a + b
+def read_requirements():
+    req_file = os.path.join(
+        os.path.dirname(__file__), "deploy", "requirements.txt"
+    )
+    with open(req_file, "r") as f:
+        return [
+            line.strip()
+            for line in f
+            if line.strip() and not line.startswith("#")
+        ]
+
+
+setup(
+    name="llmparse",
+    version=read_version(),
+    package_dir={"": "src"},
+    packages=find_packages(where="src"),
+    install_requires=read_requirements(),
+    description="An open source package for parsing documents using an LLM",
+    author="Srikanth Sripada",
+    author_email="srikanth6991@gmail.com",
+    url="https://github.com/srikanth-sripada/llm-parse",
+    classifiers=[
+        "Programming Language :: Python :: 3",
+        "License :: OSI Approved :: MIT License",
+    ],
+    python_requires=">=3.11",
+)
