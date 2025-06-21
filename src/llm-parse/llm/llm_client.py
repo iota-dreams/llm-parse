@@ -12,21 +12,10 @@ from langchain_google_genai import ChatGoogleGenerativeAI  # Gemini (Google)
 from PIL import Image
 from pydantic import BaseModel, ValidationError
 
+from ..models import LLMConfig
 from ..utils import get_logger
 
 logger = get_logger(__name__)
-
-
-class LLMConfig(BaseModel):
-    """
-    Configuration for the LLM model.
-    """
-
-    provider: str  # "gpt", "gemini", "claude"
-    model_name: str
-    temperature: Optional[float] = 0.7
-    prompt: str  # Base system or task prompt
-    image_path: Optional[Union[str, Path]] = None
 
 
 def load_config(config_path: Union[str, Path]) -> LLMConfig:

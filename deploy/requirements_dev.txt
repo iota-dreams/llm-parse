@@ -68,7 +68,7 @@ langchain-core==0.3.66
 langchain-google-genai==2.1.5
 langchain-text-splitters==0.3.8
 langsmith==0.4.1
--e git+ssh://git@github.com/srikanth-sripada/llm-parse.git@5ff2ad3d8e0586dad6698b320ad4a53356691d83#egg=llmparse
+-e git+ssh://git@github.com/srikanth-sripada/llm-parse.git@main#egg=llmparse
 markdown-it-py==3.0.0
 MarkupSafe==3.0.2
 matplotlib-inline==0.1.7

@@ -44,6 +44,10 @@ fi
 echo "🧪 Generating deploy/requirements_dev.txt from environment..."
 pip freeze > deploy/requirements_dev_raw.txt
 
+# Replace commit hash (40 hex chars) in editable installs with branch name 'main'
+sed -i.bak 's/@[0-9a-f]\{40\}/@main/g' deploy/requirements_dev_raw.txt
+rm deploy/requirements_dev_raw.txt.bak
+
 # Prepare deploy/requirements_dev.txt with references to base + cloud requirements
 echo "-r requirements.txt" > deploy/requirements_dev.txt
 echo "-r requirements_cloud.txt" >> deploy/requirements_dev.txt
