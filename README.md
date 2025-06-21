@@ -82,7 +82,7 @@ cd llm_parse
    direnv allow
    ```
 
-This uses `.envrc`:
+This uses the project's pre-configured .envrc file
 
 ```sh
 source ~/miniforge3/etc/profile.d/conda.sh
@@ -94,7 +94,7 @@ mamba activate llm_parse
 <details>
 <summary>Without <code>direnv</code></summary>
 
-Activate manually:
+Manual activation (no direnv):
 
 ```bash
 source ~/miniforge3/etc/profile.d/conda.sh
