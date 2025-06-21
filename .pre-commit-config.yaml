@@ -3,13 +3,13 @@ repos:
     rev: 24.3.0
     hooks:
       - id: black
-        args: ["--quiet"] # optional: suppress output
+        args: ["--config", "pyproject.toml"]
 
   - repo: https://github.com/charliermarsh/ruff-pre-commit
     rev: v0.3.4
     hooks:
       - id: ruff
-        args: ["--fix"] # ✅ auto-fixes lint + imports
+        args: ["--config", "pyproject.toml", "--fix"]
 
   - repo: local
     hooks:
@@ -18,4 +18,4 @@ repos:
         entry: ./update_reqs.zsh
         language: system
         types: [python]
-        pass_filenames: false # avoids sending file list
+        pass_filenames: false
