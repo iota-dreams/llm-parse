@@ -166,3 +166,5 @@ docker-volume/
 *.mo
 *.pot
 *.sqlite3
+
+**/test_dev.py

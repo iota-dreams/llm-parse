@@ -5,17 +5,23 @@ from typing import List, Optional, Union
 from pydantic import BaseModel, Field
 
 
+class SafetySetting(BaseModel):
+    category: str
+    threshold: str
+
+
 class LLMConfig(BaseModel):
     """
     Configuration for the LLM model.
     """
 
-    provider: str  # "gpt", "gemini", "claude"
+    provider: str  # "anthropi", "google_gemini", "google_genai", "openai"  Refer this: https://python.langchain.com/docs/integrations/chat/
     model_name: str
     temperature: Optional[float] = 0.7
     prompt: str  # Base system or task prompt
     image_path: Optional[Union[str, Path]] = None
     table_type: Optional[str] = "html"
+    safety_settings: Optional[List[SafetySetting]] = None
 
 
 class LLMParse(BaseModel):
