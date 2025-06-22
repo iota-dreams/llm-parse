@@ -109,7 +109,6 @@ PyJWT==2.10.1
 python-dateutil==2.9.0.post0
 pyzmq==27.0.0
 referencing==0.36.2
-requests==2.32.4
 requests-toolbelt==1.0.0
 roman-numerals-py==3.1.0
 rpds-py==0.25.1

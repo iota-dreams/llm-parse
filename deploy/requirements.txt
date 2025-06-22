@@ -10,5 +10,6 @@ protobuf==6.31.1
 pydantic==2.11.7
 PyYAML==6.0.2
 PyYAML==6.0.2
+Requests==2.32.4
 sentry_sdk==2.30.0
 watchtower==3.4.0

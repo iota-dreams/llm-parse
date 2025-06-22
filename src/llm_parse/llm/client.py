@@ -1,19 +1,22 @@
+import base64
+import io
 from pathlib import Path
-from typing import Any, Optional, Type, Union
+from typing import List, Optional, Type, Union
 
 import yaml
 from langchain.chat_models import init_chat_model
 
 # LangChain models
-from langchain.schema import BaseMessage, HumanMessage
 from langchain_core.language_models.chat_models import BaseChatModel
-from PIL import Image
+from langchain_core.messages import BaseMessage, HumanMessage
+from langchain_core.prompts import ChatPromptTemplate
+from PIL import Image as PILImage
 from pydantic import BaseModel, ValidationError
 
 from ..models import LLMConfig
-from ..utils import get_logger
+from ..utils import get_logger, supports_multimodal
 
-LLMOutput = Union[BaseModel, str, dict[str, Any], list[Any]]
+LLMOutput = Union[str, dict, list, BaseModel]
 logger = get_logger(__name__)
 
 
@@ -55,23 +58,100 @@ def get_llm_provider(config: LLMConfig) -> BaseChatModel:
         raise ValueError(value_error) from e
 
 
-def build_prompt(config: LLMConfig, user_question: Optional[str] = None) -> str:
+def build_prompt(
+    config: LLMConfig,
+    user_question: Optional[str] = None,
+    image: Optional[Union[PILImage.Image, str]] = None,
+    image_as_base64: bool = True,
+) -> List[BaseMessage]:
     """
-    Builds the full prompt using base prompt and optional user input.
+    Build prompt messages using ChatPromptTemplate for text,
+    and structured content blocks for image input (if supported).
+
+    Parameters
+    ----------
+    config : LLMConfig
+        Contains system prompt, provider, and model name.
+    user_question : str, optional
+        User's input prompt.
+    image : Union[PIL.Image.Image, str], optional
+        Image input (PIL image or URL).
+    image_as_base64 : bool, default=True
+        Whether to encode the PIL image as base64.
+
+    Returns
+    -------
+    List[BaseMessage]
+        LangChain-compatible list of messages.
+
+    Raises
+    ------
+    NotImplementedError
+        If image input is provided but not supported by the model.
+    TypeError
+        If `image` is not a valid type.
+    ValueError
+        If `image_as_base64` is False but image is a PIL image.
     """
-    if user_question:
-        logger.info("Building prompt with user question.")
-    return config.prompt + (
-        f"\nUser question: {user_question}" if user_question else ""
+    provider = config.provider
+    model_name = getattr(config, "model_name", None)
+    system_prompt = config.prompt
+    user_input = user_question or ""
+
+    # Text-only messages from prompt template
+    prompt = ChatPromptTemplate.from_messages(
+        [("system", system_prompt), ("human", "{user_input}")]
     )
+    messages = prompt.format_messages(user_input=user_input)
+
+    # Handle multimodal message
+    if image:
+        if not supports_multimodal(provider, model_name):
+            raise NotImplementedError(
+                (
+                    f"Image input not supported for provider '{provider}' "
+                    f"with model '{model_name}'"
+                )
+            )
+
+        from typing import Dict, Union
+
+        content_blocks: List[Union[str, Dict[str, str]]] = [
+            {"type": "text", "text": user_input}
+        ]
+
+        if isinstance(image, str):
+            content_blocks.append({"type": "image", "source_type": "url", "url": image})
+        elif isinstance(image, PILImage.Image):
+            if not image_as_base64:
+                raise ValueError("Only base64 encoding is supported for PIL.Image.")
+            buffer = io.BytesIO()
+            image.save(buffer, format="PNG")
+            img_b64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
+            content_blocks.append(
+                {
+                    "type": "image",
+                    "source_type": "base64",
+                    "data": img_b64,
+                    "mime_type": "image/png",
+                }
+            )
+        else:
+            raise TypeError("Image must be a PIL.Image.Image or a URL string.")
+
+        # Replace the final human message with the multimodal version
+        messages[-1] = HumanMessage(content=content_blocks)
+
+    logger.debug(f"Built prompt with image={bool(image)}: {messages}")
+    return messages
 
 
-def load_image(image_path: Union[str, Path]) -> Image.Image:
+def load_image(image_path: Union[str, Path]) -> PILImage.Image:
     """
     Load and process image from a path.
     """
     logger.info(f"Loading image: {image_path}")
-    with Image.open(image_path) as img:
+    with PILImage.open(image_path) as img:
         return img.convert("RGB")
 
 
@@ -79,16 +159,52 @@ def call_llm(
     config: LLMConfig,
     user_question: Optional[str] = None,
     response_model: Optional[Type[BaseModel]] = None,
+    image: Optional[PILImage.Image] = None,
 ) -> LLMOutput:
-    logger.info("Preparing to invoke LLM.")
-    llm: BaseChatModel = get_llm_provider(config)
-    prompt_text = build_prompt(config, user_question)
-    messages = [HumanMessage(content=prompt_text)]
+    """
+    Calls an LLM using the provided config and question, with optional image and
+    structured response.
 
-    if config.image_path:
-        logger.info(f"Image input specified at {config.image_path}.")
-        _ = load_image(config.image_path)
-        raise NotImplementedError("Image input support is not implemented yet.")
+    Parameters
+    ----------
+    config : LLMConfig
+        Configuration containing model, provider, prompt, etc.
+    user_question : str, optional
+        The user's question or prompt.
+    response_model : Type[BaseModel], optional
+        A Pydantic model to parse the response into structured format.
+    image : PIL.Image.Image, optional
+        Optional image input. If not provided, falls back to `config.image_path`.
+
+    Returns
+    -------
+    Union[str, dict, list, BaseModel]
+        Raw string or structured result from the LLM.
+
+    Raises
+    ------
+    ValidationError
+        If structured parsing fails.
+    RuntimeError
+        If LLM invocation fails.
+    """
+    logger.info("Preparing to invoke LLM.")
+
+    # Use provided image or load from path
+    if image is None and config.image_path:
+        logger.info(f"Loading image from path: {config.image_path}")
+        image = load_image(config.image_path)
+
+    # Initialize the LLM instance
+    llm: BaseChatModel = init_chat_model(
+        model=config.model_name,
+        model_provider=config.provider,
+        temperature=config.temperature or 0.7,
+        timeout=getattr(config, "timeout", None),
+    )
+
+    # Build prompt with optional image support
+    messages = build_prompt(config, user_question, image=image)
 
     logger.info(f"Calling model: {config.model_name}")
     try:
@@ -96,13 +212,14 @@ def call_llm(
             structured_llm = llm.with_structured_output(response_model)
             result = structured_llm.invoke(messages)
             logger.info("Structured response parsed successfully.")
-            return result  # Already a BaseModel
-        else:
-            response: BaseMessage = llm.invoke(messages)
-            content = getattr(response, "content", response)
-            if isinstance(content, (str, dict, list)):
-                return content
-            return str(content)
+            return result
+
+        response: BaseMessage = llm.invoke(messages)
+        content = getattr(response, "content", response)
+        if isinstance(content, (str, dict, list)):
+            return content
+        return str(content)
+
     except ValidationError as ve:
         logger.error(f"Failed to parse response with Pydantic model: {ve}")
         raise

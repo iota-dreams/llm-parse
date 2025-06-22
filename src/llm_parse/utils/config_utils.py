@@ -1,3 +1,5 @@
+import os
+
 import yaml
 
 
@@ -30,7 +32,7 @@ class DotDict(dict):
         return value
 
 
-def load_config(file_path, dotify=False):
+def load_config(file_path, dotify=True):
     """
     Loads a YAML file and optionally converts it into a DotDict.
 
@@ -41,7 +43,8 @@ def load_config(file_path, dotify=False):
     Returns:
         dict or DotDict: Parsed YAML content.
     """
-    with open(file_path, "r") as f:
+    abs_path = os.path.abspath(file_path)
+    with open(abs_path, "r") as f:
         data = yaml.safe_load(f)
     return DotDict(data) if dotify else data
 
