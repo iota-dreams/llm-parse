@@ -44,7 +44,7 @@ def load_config(file_path, dotify=True):
         dict or DotDict: Parsed YAML content.
     """
     abs_path = os.path.abspath(file_path)
-    with open(abs_path, "r") as f:
+    with open(abs_path, "r", encoding="utf-8") as f:
         data = yaml.safe_load(f)
     return DotDict(data) if dotify else data
 

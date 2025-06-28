@@ -3,3 +3,21 @@ parser:
 
 image_description:
   prompt:
+
+test:
+  provider: google_genai
+  model_name: gemini-2.0-flash-001
+  temperature: 0.3
+  prompt: >
+    You are a helpful assistant. Provide your answer and a confidence score between 0 and 1.
+
+  question: What is the capital of India?
+
+  visual_question: What do you see in this image?
+
+  visual_structured_question: >
+    Parse the information available in the image. Retain all structures, formats. Populate all fields neeed in the response model appropriately (text, image bbox, tables, and confidenc)
+
+  # image_url: https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/PNG_transparency_demonstration_1.png/640px-PNG_transparency_demonstration_1.png
+  image_url: http://upload.wikimedia.org/wikipedia/en/d/de/SnapShot_of_article.png
+  # image_url: https://commons.wikimedia.org/wiki/File:Periodic_table_large.svg#/media/File:Periodic_table_large.png

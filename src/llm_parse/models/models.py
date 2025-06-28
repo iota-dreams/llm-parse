@@ -25,12 +25,27 @@ class LLMConfig(BaseModel):
 
 
 class LLMParse(BaseModel):
-    """Response format expected from the LLM parser"""
+    """Response format expected from the LLM parser."""
 
-    text_content: str
-    image_bbox: Optional[List[List[float]]] = None  # List of bounding boxes
-    table_extracted: Optional[Union[str, None]] = None  # markdown or HTML as string
-    image_base64: Optional[List[str]] = None  # list of base64-encoded image strings
+    text_content: str = Field(
+        ...,
+        description="Main text content extracted from the image or document. Should be"
+        "clean and ready for downstream processing.",
+    )
+    image_bbox: Optional[List[List[float]]] = Field(
+        None,
+        description="List of bounding boxes for visual elements detected. Each box is "
+        "[x_min, y_min, x_max, y_max].",
+    )
+    table_extracted: Optional[Union[str, None]] = Field(
+        None,
+        description="Extracted table content, formatted as HTML or Markdown.",
+    )
+    parse_confidence: Optional[float] = Field(
+        None,
+        description="Optional confidence score (0 to 1) indicating how certain the"
+        " model is about its parsing.",
+    )
 
 
 class LLMParseResult(BaseModel):
@@ -40,7 +55,7 @@ class LLMParseResult(BaseModel):
 
     config: LLMConfig  # The config that was used to make the call
     parse: LLMParse  # The actual parsed result
-
+    image_base64: Optional[List[str]] = None  # list of base64-encoded image strings
     tokens_used: Optional[int] = None
     latency_ms: Optional[float] = None
     success: bool = True
