@@ -16,6 +16,7 @@ if __name__ == "__main__":
 
     response_model = LLMParse
     table_handler = TableHandler.html
+    denormalize_images = True
     user_question = None
     # example_question = "What is the summary of this page?"
     password = ""
@@ -30,11 +31,12 @@ if __name__ == "__main__":
         prompt=parse_config.prompt,
     )
 
-    process_pdf_with_llm(
+    parsed_pdf = process_pdf_with_llm(
         file_path=example_pdf,
         config=parse_config,
         response_model=response_model,
         table_handler=table_handler,
+        denormalize_images=denormalize_images,
         user_question=user_question,
         password=password,
         write_to_disk=write_to_disk,

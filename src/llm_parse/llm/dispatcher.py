@@ -118,9 +118,12 @@ def dispatch_llm_request(
                 raise RuntimeError(f"Validation failed: {ve}") from ve
         elif isinstance(parsed, str):
             logger.warning(
-                "Parsed response was string; structured output may have failed."
+                f"Parsed response was string; structured output may have failed."
+                f"Response: {parsed}"
             )
             return parsed
 
-    logger.warning("Unstructured or unexpected LLM response format.")
+    logger.warning(
+        f"Unstructured or unexpected LLM response format. Response: {raw_response}"
+    )
     return "⚠️ LLM response could not be parsed or matched expected format."

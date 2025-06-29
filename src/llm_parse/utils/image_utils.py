@@ -7,8 +7,39 @@ from .logger import get_logger
 logger = get_logger(__name__)
 
 
+def normalize_bbox(
+    bbox: List[float], page_width: float, page_height: float
+) -> List[float]:
+    """
+    Normalize a bounding box to the [0.0, 1.0] range.
+
+    Parameters
+    ----------
+    bbox : list of float
+        Bounding box as [x_min, y_min, x_max, y_max] in page units.
+    page_width : float
+        Width of the page.
+    page_height : float
+        Height of the page.
+
+    Returns
+    -------
+    list of float
+        Normalized bounding box in the same format.
+    """
+    x_min, y_min, x_max, y_max = bbox
+    return [
+        x_min / page_width,
+        y_min / page_height,
+        x_max / page_width,
+        y_max / page_height,
+    ]
+
+
 def extract_image_bboxes_from_page_obj(
-    doc: fitz.Document, page_number: int
+    doc: fitz.Document,
+    page_number: int,
+    normalize: bool = True,
 ) -> Dict[str, List[float]]:
     """
     Extracts bounding boxes for all images on a specific page of a loaded PDF document.
@@ -18,7 +49,9 @@ def extract_image_bboxes_from_page_obj(
     doc : fitz.Document
         An already loaded PyMuPDF document object.
     page_number : int
-        Zero-based index of the page to extract image bounding boxes from.
+        One-based index of the page to extract image bounding boxes from.
+    normalize : bool
+        If True, normalize bounding boxes to [0.0, 1.0] based on page size.
 
     Returns
     -------
@@ -29,40 +62,106 @@ def extract_image_bboxes_from_page_obj(
         If no images are present, returns an empty dictionary.
     """
     try:
-        # Our page number for loop starts from 1 to #pages in the document, but fitz
-        # counts them 0 to #pages -1. Inorder to correct for this, subtracting -1 from
-        # here. We maintain 1 to #pages convention for page numbers
-        page_number = page_number - 1
+        page_number -= 1  # Convert to zero-based index for PyMuPDF
         if not (0 <= page_number < len(doc)):
-            raise ValueError(f"Page number {page_number} is out of range.")
+            raise ValueError(f"Page number {page_number + 1} is out of range.")
 
         page = doc[page_number]
-        image_bboxes: Dict[str, List[float]] = {}
+        image_bbox_guide: Dict[str, List[float]] = {}
 
         images = page.get_images(full=True)
         if not images:
-            logger.debug(f"No images found on page {page_number}.")
-            # Explicit empty result
-            return image_bboxes
+            logger.debug(f"No images found on page {page_number + 1}.")
+            return image_bbox_guide
+
+        page_width = page.rect.width
+        page_height = page.rect.height
 
         for index, img in enumerate(images):
             xref = img[0]
             rect, _ = page.get_image_bbox(xref)
+            bbox = [rect.x0, rect.y0, rect.x1, rect.y1]
 
-            image_bboxes[f"image_{index + 1}"] = [
-                rect.x0,
-                rect.y0,
-                rect.x1,
-                rect.y1,
-            ]
+            if normalize:
+                bbox = normalize_bbox(bbox, page_width, page_height)
 
-        return image_bboxes
+            image_bbox_guide[f"image_{index + 1}"] = bbox
+
+        return image_bbox_guide
 
     except Exception as e:
         logger.error(
-            f"❌ Failed to extract image bounding boxes from page {page_number}: {e}",
+            f"❌ Failed to extract image bounding boxes from page"
+            f"{page_number + 1}: {e}",
             exc_info=True,
         )
         raise RuntimeError(
-            f"Image bounding box extraction failed for page {page_number}"
+            f"Image bounding box extraction failed for page {page_number + 1}"
         ) from e
+
+
+def denormalize_all_bboxes(
+    bbox_dict: Dict[str, List[float]],
+    page_width: float,
+    page_height: float,
+) -> Dict[str, List[float]]:
+    """
+    Denormalize bounding boxes from normalized [0.0-1.0] format to absolute page
+    coordinates.
+
+    Parameters
+    ----------
+    bbox_dict : Dict[str, List[float]]
+        Dictionary of normalized bounding boxes with keys like "image_1" and values
+        as [x_min, y_min, x_max, y_max] where all values are between 0.0 and 1.0.
+    page_width : float
+        Width of the PDF page or image in points.
+    page_height : float
+        Height of the PDF page or image in points.
+
+    Returns
+    -------
+    Dict[str, List[float]]
+        Dictionary with the same keys as `bbox_dict` but with absolute coordinate
+        values.
+
+    Notes
+    -----
+    - If `bbox_dict` is empty, an empty dictionary is returned.
+    - Invalid entries (non-list or not length 4) are skipped with a warning.
+    """
+    # Early exit if the dictionary is empty
+    if not bbox_dict:
+        logger.debug("Received empty bbox_dict; returning empty result.")
+        return {}
+
+    denormalized = {}
+
+    for key, bbox in bbox_dict.items():
+        # Validate that each value is a list of exactly four float-like numbers
+        if not isinstance(bbox, list) or len(bbox) != 4:
+            logger.warning(f"Skipping invalid bbox for key '{key}': {bbox}")
+            continue
+
+        try:
+            x_min, y_min, x_max, y_max = bbox
+
+            # Denormalize coordinates using page dimensions
+            denormalized[key] = [
+                x_min * page_width,
+                y_min * page_height,
+                x_max * page_width,
+                y_max * page_height,
+            ]
+
+        except Exception as e:
+            logger.error(
+                f"Failed to denormalize bbox for key '{key}': {bbox}. Error: {e}",
+                exc_info=True,
+            )
+            continue
+
+    if not denormalized:
+        logger.debug("No valid bboxes found to denormalize.")
+
+    return denormalized

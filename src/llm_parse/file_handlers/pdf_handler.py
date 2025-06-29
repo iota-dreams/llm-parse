@@ -69,20 +69,28 @@ class PDFHandler(DocumentHandler):
             logger.exception("Error opening or decrypting PDF.")
             raise
 
-    def extract_screenshots(self) -> Iterator[Tuple[int, Image.Image]]:
+    def extract_screenshots(
+        self,
+    ) -> Iterator[Tuple[int, Image.Image, Tuple[float, float]]]:
         """
         Generator that yields screenshots of each page in order.
 
         Yields:
-            Tuple[int, Image.Image]: (1-based page number, PIL Image)
+            Tuple[int, Image.Image, Tuple[float, float]]:
+                (1-based page number, PIL Image, (width, height) in PDF space)
         """
         for page_number in range(self.total_pages):
             try:
                 logger.info(f"Rendering page {page_number + 1} of {self.total_pages}")
                 page = self.document.load_page(page_number)
+                page_width = page.rect.width
+                page_height = page.rect.height
+
                 pix = page.get_pixmap(dpi=300)  # type: ignore[attr-defined]
                 image = Image.open(io.BytesIO(pix.tobytes("png")))
-                yield page_number + 1, image
+
+                yield page_number + 1, image, (page_width, page_height)
+
             except Exception as e:
                 logger.exception(f"Failed to render page {page_number + 1}")
                 raise RuntimeError(

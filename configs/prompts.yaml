@@ -11,45 +11,50 @@ parser:
 
     **Schema:**
 
-    - `text_content`: A string containing the clean, structured text extracted from the page.  
-      - Replace any tables or visual elements with placeholders like `{{table_1}}`, `{{image_1}}`, etc.
+    - `text_content`: A string containing the clean, structured text extracted from the page.
+      - Replace any tables or visual elements with placeholders like `{{table_1}}`, `{{image_1}}`, with double `{{}}` etc.
 
-    - `tables`: A JSON object (dictionary) of extracted tables.  
-      - Each key must match a placeholder in `text_content`, e.g., `"table_1"`.  
-      - Each value must be the table content as a **{table_format}** string (either `"markdown"` or `"html"`).  
-      - ⚠️ Must be a valid JSON dictionary — not a stringified dictionary.  
-      - Use **double quotes** for all keys and string values.  
-      - Escape all newlines inside table strings using `\\n`.  
+    - `tables`: A JSON object (dictionary) of extracted tables.
+      - Each key must match a placeholder in `text_content`, e.g., `"table_1"`.
+      - Each value must be the table content as a **{table_format}** string (either `"markdown"` or `"html"`).
+      - ⚠️ Must be a valid JSON dictionary — not a stringified dictionary.
+      - Use **double quotes** for all keys and string values.
+      - Escape all newlines in the table string using `\\n`.
       - Do **not** use single quotes, ellipses (`...`), or trailing commas.
 
-    - `images`: A JSON object mapping visual elements (e.g., charts, diagrams).  
-      - Keys must match placeholders like `"image_1"` in `text_content`.  
-      - Values should be bounding boxes: `[x_min, y_min, x_max, y_max]`.
+    - `image_bbox`: A JSON object mapping visual elements (e.g., charts, diagrams, figures).
+      - Each key must match an image placeholder in `text_content`, such as `"image_1"`.
+      - Each value should be a bounding box in the format `[x_min, y_min, x_max, y_max]`.
+      - Bounding box coordinates must be **normalized to the range [0.0, 1.0]** relative to the image/page dimensions:
+        - `(0.0, 0.0)` represents the top-left corner
+        - `(1.0, 1.0)` represents the bottom-right corner
 
     - `parse_confidence`: A float between 0 and 1 indicating your confidence in the parsing.
 
     ---
 
-    📎 **Image Bounding Box Hints**
+    📎 **Image Bounding Box Guide**
 
     Here is a dictionary of potential visual element locations extracted via PyMuPDF:  
     **`image_bbox_guide`** = `{image_bbox_guide}`
 
-    You can:
-    - Use the bounding boxes as-is,
-    - Modify them to better match visual content,
-    - Discard those that don't align with actual elements,
-    - Add new bounding boxes if needed.
+    - Each value is a normalized bounding box: `[x_min, y_min, x_max, y_max]`, in the range `[0.0, 1.0]`.
+    - You may:
+      - Use the bounding boxes as-is,
+      - Adjust them to better match actual content,
+      - Discard incorrect ones,
+      - Or add new bounding boxes as needed.
+    - If `text_content` contains placeholders like `{{image_1}}`, align them with the correct bounding box.
 
     ---
 
-    ⚠️ Important:
+    ⚠️ **Important:**
 
     - Return **only** a valid JSON object conforming exactly to this schema.
     - Do **not** wrap dictionaries in strings or return explanations.
-    - Do **not** use Python-style syntax (e.g., single quotes or unquoted keys).
-    - Do **not** include markdown fencing like ````json```.
-    - Every key and string must use **double quotes**.
+    - Do **not** use Python-style syntax (e.g., single quotes, unquoted keys).
+    - Do **not** include Markdown fencing such as ````json```.
+    - Use **double quotes** for all keys and string values.
 
     ---
 

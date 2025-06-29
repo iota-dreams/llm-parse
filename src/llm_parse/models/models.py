@@ -1,7 +1,7 @@
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -38,7 +38,7 @@ class LLMParse(BaseModel):
 
     - `text_content`: Extracted text with placeholders like {{table_1}}, {{image_1}}.
     - `tables`: Mapping of placeholders to table content in HTML or Markdown.
-    - `images`: Mapping of placeholders to image bounding boxes.
+    - `image_bbox`: Mapping of placeholders to image bounding boxes.
     - `parse_confidence`: Confidence score from 0 to 1.
 
     This structure enables clean rendering, post-processing, and semantic indexing.
@@ -49,7 +49,7 @@ class LLMParse(BaseModel):
         description="Main parsed text with placeholders like {{table_1}}, {{image_2}}"
         "in place of visual content.",
     )
-    images: Optional[Dict[str, list[float]]] = Field(
+    image_bbox: Optional[Dict[str, list[float]]] = Field(
         default_factory=dict,
         description="Dictionary mapping image placeholders (e.g., 'image_1') to "
         "bounding box coordinates: [x_min, y_min, x_max, y_max].",
@@ -70,10 +70,10 @@ class LLMParse(BaseModel):
     def validate_tables(cls, value):
         return parse_loose_dict(value, field_name="tables")
 
-    @field_validator("images", mode="before")
+    @field_validator("image_bbox", mode="before")
     @classmethod
     def validate_images(cls, value):
-        return parse_loose_dict(value, field_name="images")
+        return parse_loose_dict(value, field_name="image_bbox")
 
 
 class LLMParseResult(BaseModel):
@@ -87,6 +87,7 @@ class LLMParseResult(BaseModel):
     page_number: int
     image_bbox_guide: Optional[Dict[str, List[float]]] = None
     hyperlink_guide: Optional[List[str]] = None
+    page_dimensions: Optional[Tuple[float, float]] = None  # (width, height)
     image_base64: Optional[List[str]] = None  # list of base64-encoded image strings
     tokens_used: Optional[int] = None
     latency_ms: Optional[float] = None
