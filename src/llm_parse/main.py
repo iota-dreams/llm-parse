@@ -11,6 +11,8 @@ logger = logging.getLogger("LLM_parser")
 # Set Gemini API Key (ensure this is set)
 os.environ["GOOGLE_API_KEY"] = os.getenv("gemini_api_key") or ""
 
+print("hi")
+
 
 def process_pdf_with_llm(
     file_path: str,
