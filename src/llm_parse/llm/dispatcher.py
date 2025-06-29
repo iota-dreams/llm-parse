@@ -18,6 +18,7 @@ def dispatch_llm_request(
     table_handler: Optional[TableHandler] = TableHandler.html,
     user_question: Optional[str] = None,
     image: Optional[PILImage.Image] = None,
+    image_bbox_guide: Optional[dict] = None,
 ) -> Union[str, ResponseModelType]:
     """
     Calls an LLM using the provided configuration and attempts structured parsing if
@@ -43,6 +44,17 @@ def dispatch_llm_request(
         The prompt or question to send to the LLM.
     image : PIL.Image.Image, optional
         Optional image input to pass to the LLM for multimodal support.
+    image_bbox_guide : dict, optional
+        A dictionary mapping image placeholders (e.g., "image_1") to bounding box
+        coordinates in the format [x_min, y_min, x_max, y_max].
+        This can be provided as a guide to help the LLM align visual elements with
+        their location on the document page.
+
+        Example:
+            {
+                "image_1": [72.0, 144.0, 320.5, 288.0],
+                "image_2": [100.0, 400.0, 250.0, 500.0]
+            }
 
     Returns
     -------
@@ -54,6 +66,9 @@ def dispatch_llm_request(
     RuntimeError
         If the LLM call fails or the response is not usable.
     """
+    if image_bbox_guide is None:
+        image_bbox_guide = {}
+
     try:
         raw_response = call_llm(
             config=config,
@@ -61,6 +76,7 @@ def dispatch_llm_request(
             table_handler=table_handler,
             user_question=user_question,
             image=image,
+            image_bbox_guide=image_bbox_guide,
         )
     except Exception as e:
         logger.error("Error during LLM invocation", exc_info=True)

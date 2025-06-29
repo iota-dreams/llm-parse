@@ -30,6 +30,19 @@ parser:
 
     ---
 
+    📎 **Image Bounding Box Hints**
+
+    Here is a dictionary of potential visual element locations extracted via PyMuPDF:  
+    **`image_bbox_guide`** = `{image_bbox_guide}`
+
+    You can:
+    - Use the bounding boxes as-is,
+    - Modify them to better match visual content,
+    - Discard those that don't align with actual elements,
+    - Add new bounding boxes if needed.
+
+    ---
+
     ⚠️ Important:
 
     - Return **only** a valid JSON object conforming exactly to this schema.
@@ -43,6 +56,12 @@ parser:
     Now parse the following document page.
 
 image_description:
+  provider: google_genai
+  model_name: gemini-2.0-flash-001
+  temperature: 0.3
+  prompt:
+
+eval:
   provider: google_genai
   model_name: gemini-2.0-flash-001
   temperature: 0.3

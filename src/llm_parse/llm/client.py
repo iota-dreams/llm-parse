@@ -21,6 +21,7 @@ def call_llm(
     table_handler: Optional[TableHandler] = TableHandler.html,
     user_question: Optional[str] = None,
     image: Optional[PILImage.Image] = None,
+    image_bbox_guide: Optional[dict] = None,
 ) -> LLMOutput:
     """
     Calls an LLM using the provided config and question, with optional image and
@@ -43,6 +44,17 @@ def call_llm(
         The user's question or prompt.
     image : PIL.Image.Image, optional
         Optional image input. If not provided, falls back to `config.image_path`.
+    image_bbox_guide : dict, optional
+        A dictionary mapping image placeholders (e.g., "image_1") to bounding box
+        coordinates in the format [x_min, y_min, x_max, y_max].
+        This can be provided as a guide to help the LLM align visual elements with
+        their location on the document page.
+
+        Example:
+            {
+                "image_1": [72.0, 144.0, 320.5, 288.0],
+                "image_2": [100.0, 400.0, 250.0, 500.0]
+            }
 
     Returns
     -------
@@ -58,6 +70,9 @@ def call_llm(
     """
     logger.info("Preparing to invoke LLM.")
 
+    if image_bbox_guide is None:
+        image_bbox_guide = {}
+
     # Initialize the LLM instance
     llm: BaseChatModel = init_chat_model(
         model=config.model_name,
@@ -72,6 +87,7 @@ def call_llm(
         table_handler=table_handler,
         user_question=user_question,
         image=image,
+        image_bbox_guide=image_bbox_guide,
     )
 
     logger.info(f"Calling model: {config.model_name}")

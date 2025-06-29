@@ -5,7 +5,7 @@ from typing import Optional
 from llm_parse.file_handlers import PDFHandler
 from llm_parse.llm.dispatcher import dispatch_llm_request
 from llm_parse.models import LLMConfig, LLMParse, TableHandler
-from llm_parse.utils import load_config
+from llm_parse.utils import extract_image_bboxes_from_page_obj, load_config
 
 logger = logging.getLogger("LLM_parser")
 # Set Gemini API Key (ensure this is set)
@@ -55,13 +55,23 @@ def process_pdf_with_llm(
     password : str, optional
         Password for opening encrypted PDFs. If not provided, encrypted PDFs will
         fail to open unless accessible without a password.
+
+    Raises
+    ------
+    RuntimeError
+        If the document loading fails or is None.
     """
     handler = PDFHandler(file_path, password=password)
+
+    if handler.document is None:
+        raise RuntimeError("PDF document not loaded correctly.")
 
     try:
         for page_number, image in handler.extract_screenshots():
             logger.info(f"Dispatching LLM request for page {page_number}...")
-
+            image_bbox_guide = extract_image_bboxes_from_page_obj(
+                doc=handler.document, page_number=page_number
+            )
             try:
                 response = dispatch_llm_request(
                     config=config,
@@ -69,6 +79,7 @@ def process_pdf_with_llm(
                     table_handler=table_handler,
                     user_question=user_question,
                     image=image,
+                    image_bbox_guide=image_bbox_guide,
                 )
                 logger.info(f"✅ Page {page_number} response: {response}")
 

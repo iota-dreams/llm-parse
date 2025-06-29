@@ -81,6 +81,7 @@ def build_prompt(
     user_question: Optional[str] = None,
     image: Optional[Union[PILImage.Image, str]] = None,
     image_as_base64: bool = True,
+    image_bbox_guide: Optional[dict] = None,
 ) -> List[BaseMessage]:
     """
     Build prompt messages using ChatPromptTemplate for text,
@@ -100,6 +101,17 @@ def build_prompt(
         User's input prompt.
     image : Union[PIL.Image.Image, str], optional
         Image input (PIL image or URL).
+        image_bbox_guide : dict, optional
+        A dictionary mapping image placeholders (e.g., "image_1") to bounding box
+        coordinates in the format [x_min, y_min, x_max, y_max].
+        This can be provided as a guide to help the LLM align visual elements with
+        their location on the document page.
+
+        Example:
+            {
+                "image_1": [72.0, 144.0, 320.5, 288.0],
+                "image_2": [100.0, 400.0, 250.0, 500.0]
+            }
     image_as_base64 : bool, default=True
         Whether to encode the PIL image as base64.
 
@@ -123,6 +135,9 @@ def build_prompt(
     user_input = user_question or ""
     table_format = getattr(table_handler, "value", "html")
 
+    if image_bbox_guide is None:
+        image_bbox_guide = {}
+
     # Text-only messages from prompt template
     prompt = ChatPromptTemplate.from_messages(
         [
@@ -130,7 +145,11 @@ def build_prompt(
             ("human", "{user_input}"),
         ]
     )
-    messages = prompt.format_messages(user_input=user_input, table_format=table_format)
+    messages = prompt.format_messages(
+        user_input=user_input,
+        table_format=table_format,
+        image_bbox_guide=image_bbox_guide,
+    )
 
     # Handle multimodal message
     if image:
