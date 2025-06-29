@@ -83,6 +83,10 @@ class LLMParseResult(BaseModel):
 
     config: LLMConfig  # The config that was used to make the call
     parse: LLMParse  # The actual parsed result
+    file_name: str
+    page_number: int
+    image_bbox_guide: Optional[Dict[str, List[float]]] = None
+    hyperlink_guide: Optional[List[str]] = None
     image_base64: Optional[List[str]] = None  # list of base64-encoded image strings
     tokens_used: Optional[int] = None
     latency_ms: Optional[float] = None

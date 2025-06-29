@@ -83,5 +83,5 @@ test:
 
   # image_url: https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/PNG_transparency_demonstration_1.png/640px-PNG_transparency_demonstration_1.png
   # image_url: http://upload.wikimedia.org/wikipedia/en/d/de/SnapShot_of_article.png
-  image_url: data/test/images/text.png
+  image_url: data/test/input/images/text.png
   # image_url: https://commons.wikimedia.org/wiki/File:Periodic_table_large.svg#/media/File:Periodic_table_large.png

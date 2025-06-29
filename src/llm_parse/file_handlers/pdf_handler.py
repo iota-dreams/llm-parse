@@ -9,6 +9,7 @@ import requests
 from PIL import Image
 
 from llm_parse.file_handlers.base_handler import DocumentHandler
+from llm_parse.utils import get_filename
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +32,7 @@ class PDFHandler(DocumentHandler):
         """
         self.file_path = file_path
         self.password = password
+        self.file_name = get_filename(file_path)
 
         try:
             self.document = self._open_document(file_path, password)
