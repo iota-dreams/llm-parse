@@ -29,6 +29,10 @@ def extract_image_bboxes_from_page_obj(
         If no images are present, returns an empty dictionary.
     """
     try:
+        # Our page number for loop starts from 1 to #pages in the document, but fitz
+        # counts them 0 to #pages -1. Inorder to correct for this, subtracting -1 from
+        # here. We maintain 1 to #pages convention for page numbers
+        page_number = page_number - 1
         if not (0 <= page_number < len(doc)):
             raise ValueError(f"Page number {page_number} is out of range.")
 
