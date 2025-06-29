@@ -68,11 +68,22 @@ class LLMParse(BaseModel):
     @field_validator("tables", mode="before")
     @classmethod
     def validate_tables(cls, value):
+        # Allow null-like values from LLMs such as None, "null", or empty string
+        # These are normalized into an empty dictionary to prevent validation failure
+        if value in (None, "null", ""):
+            return {}
+
+        # Attempt to parse JSON or Python-style stringified dicts using utility
         return parse_loose_dict(value, field_name="tables")
 
     @field_validator("image_bbox", mode="before")
     @classmethod
     def validate_images(cls, value):
+        # Same null/empty defensive guard for image_bbox
+        if value in (None, "null", ""):
+            return {}
+
+        # Use robust parsing for stringified or malformed dicts
         return parse_loose_dict(value, field_name="image_bbox")
 
 

@@ -40,9 +40,10 @@ def extract_image_bboxes_from_page_obj(
     doc: fitz.Document,
     page_number: int,
     normalize: bool = True,
+    hide_invisible: bool = True,
 ) -> Dict[str, List[float]]:
     """
-    Extracts bounding boxes for all images on a specific page of a loaded PDF document.
+    Extracts bounding boxes for images on a specific page of a loaded PDF document.
 
     Parameters
     ----------
@@ -50,8 +51,11 @@ def extract_image_bboxes_from_page_obj(
         An already loaded PyMuPDF document object.
     page_number : int
         One-based index of the page to extract image bounding boxes from.
-    normalize : bool
+    normalize : bool, optional
         If True, normalize bounding boxes to [0.0, 1.0] based on page size.
+    hide_invisible : bool, optional
+        If True, skips images with empty or tiny bounding boxes
+        (i.e., invisible images).
 
     Returns
     -------
@@ -59,10 +63,10 @@ def extract_image_bboxes_from_page_obj(
         A dictionary where keys are placeholders (e.g., "image_1", "image_2") and
         values are bounding boxes in the format [x_min, y_min, x_max, y_max].
 
-        If no images are present, returns an empty dictionary.
+        If no qualifying images are present, returns an empty dictionary.
     """
     try:
-        page_number -= 1  # Convert to zero-based index for PyMuPDF
+        page_number -= 1
         if not (0 <= page_number < len(doc)):
             raise ValueError(f"Page number {page_number + 1} is out of range.")
 
@@ -78,8 +82,14 @@ def extract_image_bboxes_from_page_obj(
         page_height = page.rect.height
 
         for index, img in enumerate(images):
-            xref = img[0]
-            rect, _ = page.get_image_bbox(xref)
+            rect_tuple = page.get_image_bbox(img)
+            rect = rect_tuple[0] if isinstance(rect_tuple, tuple) else rect_tuple
+
+            # Skip small and invisible/tiny images
+            if hide_invisible and (rect.is_empty or (rect.width * rect.height) < 1.0):
+                logger.debug(f"Skipping invisible/tiny image at index {index + 1}")
+                continue
+
             bbox = [rect.x0, rect.y0, rect.x1, rect.y1]
 
             if normalize:
@@ -91,8 +101,8 @@ def extract_image_bboxes_from_page_obj(
 
     except Exception as e:
         logger.error(
-            f"❌ Failed to extract image bounding boxes from page"
-            f"{page_number + 1}: {e}",
+            f"❌ Failed to extract image bounding boxes from page {page_number + 1}:"
+            "{e}",
             exc_info=True,
         )
         raise RuntimeError(

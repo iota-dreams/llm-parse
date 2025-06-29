@@ -1,3 +1,4 @@
+import json
 from typing import Optional, Type, TypeVar, Union, cast
 
 from PIL import Image as PILImage
@@ -10,6 +11,17 @@ from llm_parse.utils import get_logger
 logger = get_logger(__name__)
 
 ResponseModelType = TypeVar("ResponseModelType", bound=BaseModel)
+
+
+def sanitize_llm_response(data: dict) -> dict:
+    """
+    Ensures LLM output dicts don't contain nulls where dictionaries are expected.
+    """
+    for key in ("tables", "image_bbox"):
+        val = data.get(key)
+        if val in (None, "null", ""):
+            data[key] = {}
+    return data
 
 
 def dispatch_llm_request(
@@ -92,14 +104,41 @@ def dispatch_llm_request(
 
     # Case 2: Handle partial or unstructured response
     if isinstance(raw_response, dict) and response_model is not None:
+        # Extract the parsed object returned by LangChain's structured output
         parsed = raw_response.get("parsed")
+
+        # Extract raw LLM message (including function_call JSON args)
+        raw = raw_response.get("raw")
+
+        # ✅ Case: Pydantic validation failed originally, but raw function call exists
+        if parsed is None and raw:
+            try:
+                # Grab the function_call's argument string from raw
+                function_call = raw.additional_kwargs.get("function_call", {})
+                args_str = function_call.get("arguments", "{}")
+
+                # Convert the argument string to a dictionary
+                parsed_dict = json.loads(args_str)
+
+                # Sanitize the dictionary (e.g., handle nulls, fix types, etc.)
+                parsed_dict = sanitize_llm_response(parsed_dict)
+
+                # Retry validation using the cleaned-up dictionary
+                validated = response_model.model_validate(parsed_dict)
+
+                logger.info("Recovered structured output via post-sanitization.")
+                return validated
+
+            except Exception as ve:
+                logger.warning(f"Retry after sanitizing parsed LLM output failed: {ve}")
+                raise RuntimeError(f"Recovery failed: {ve}") from ve
         #  To handle case when include_raw=True is set to True in
         # llm.with_structured_output function call
         # It returns in this format:
         #     {
         #         "parsed": <parsed_output>,
         #         "raw": <raw_response_from_llm>
-        #     }
+        #     }, we check for both `dict` and `BaseModel`
         if isinstance(parsed, (dict, BaseModel)):
             try:
                 # If it's already a model, just return it
@@ -126,4 +165,7 @@ def dispatch_llm_request(
     logger.warning(
         f"Unstructured or unexpected LLM response format. Response: {raw_response}"
     )
-    return "⚠️ LLM response could not be parsed or matched expected format."
+    return (
+        "⚠️ LLM response could not be parsed or matched expected format."
+        "Response: {raw_response}"
+    )

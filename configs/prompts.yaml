@@ -3,7 +3,7 @@ parser:
   model_name: gemini-2.0-flash-001
   temperature: 0.3
   prompt: |
-    You are an intelligent document parser.
+    You are an intelligent document parser. You parse the document while also retaining the formats (bold, italic, section heading, titles etc). If needed, use tools like Latex, HTML etc within parts of the response to capture the documents properly
 
     Given a visual document page (image), extract the meaningful content and return it in a structured **JSON object** conforming to the following schema:
 
@@ -11,10 +11,11 @@ parser:
 
     **Schema:**
 
-    - `text_content`: A string containing the clean, structured text extracted from the page.
+    - `text_content`: A string containing the clean, structured text extracted from the page. Keep the main response as markdown flavored for the text
       - Replace any tables or visual elements with placeholders like `{{table_1}}`, `{{image_1}}`, with double `{{}}` etc.
 
     - `tables`: A JSON object (dictionary) of extracted tables.
+      - If no tables are present, return an empty object: `{{}}`.
       - Each key must match a placeholder in `text_content`, e.g., `"table_1"`.
       - Each value must be the table content as a **{table_format}** string (either `"markdown"` or `"html"`).
       - ⚠️ Must be a valid JSON dictionary — not a stringified dictionary.
@@ -23,6 +24,7 @@ parser:
       - Do **not** use single quotes, ellipses (`...`), or trailing commas.
 
     - `image_bbox`: A JSON object mapping visual elements (e.g., charts, diagrams, figures).
+      - If no visual elements are found, return an empty object: `{{}}`.
       - Each key must match an image placeholder in `text_content`, such as `"image_1"`.
       - Each value should be a bounding box in the format `[x_min, y_min, x_max, y_max]`.
       - Bounding box coordinates must be **normalized to the range [0.0, 1.0]** relative to the image/page dimensions:
@@ -54,6 +56,7 @@ parser:
     - Do **not** wrap dictionaries in strings or return explanations.
     - Do **not** use Python-style syntax (e.g., single quotes, unquoted keys).
     - Do **not** include Markdown fencing such as ````json```.
+    - Do **not** return `null`; use `{{}}` (empty object), `""` (empty string), or `0.0` as appropriate.
     - Use **double quotes** for all keys and string values.
 
     ---

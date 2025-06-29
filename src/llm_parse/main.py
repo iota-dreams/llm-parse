@@ -10,15 +10,15 @@ os.environ["GOOGLE_API_KEY"] = os.getenv("gemini_api_key") or ""
 
 
 if __name__ == "__main__":
-    example_pdf = "data/test/input/pdf/2025q1-alphabet-earnings-release.pdf"
+    # example_pdf = "data/test/input/pdf/2025q1-alphabet-earnings-release.pdf"
     # example_pdf = "data/test/input/pdf/2025q1-alphabet-earnings-slides.pdf"
-    # example_pdf = "data/test/input/pdf/attention_is_all_you_need.pdf"
+    example_pdf = "data/test/input/pdf/attention_is_all_you_need.pdf"
 
     response_model = LLMParse
     table_handler = TableHandler.html
     denormalize_images = True
     user_question = None
-    # example_question = "What is the summary of this page?"
+    # user_question = "What is the summary of this page?"
     password = ""
     write_to_disk = True
     output_dir = "data/test/output/pdf"
