@@ -11,34 +11,36 @@ parser:
 
     **Schema:**
 
-    - `text_content`: A string containing the clean, structured text extracted from the page.
-        - Replace any tables or visual elements with placeholders like `{{table_1}}`, `{{image_1}}`, etc.
+    - `text_content`: A string containing the clean, structured text extracted from the page.  
+      - Replace any tables or visual elements with placeholders like `{{table_1}}`, `{{image_1}}`, etc.
 
-    - `tables`: A JSON object (dictionary) of extracted tables.
-        - Each key must match a placeholder in `text_content`, e.g., `"table_1"`.
-        - Each value must be the table content as a **Markdown or HTML string**.
-        - ⚠️ Must be a valid JSON dictionary — not a stringified dictionary.
-        - Use **double quotes** for all keys and string values.
-        - Escape all newlines inside table strings using `\\n`.
-        - Do **not** use single quotes, ellipses (`...`), or trailing commas.
+    - `tables`: A JSON object (dictionary) of extracted tables.  
+      - Each key must match a placeholder in `text_content`, e.g., `"table_1"`.  
+      - Each value must be the table content as a **{table_format}** string (either `"markdown"` or `"html"`).  
+      - ⚠️ Must be a valid JSON dictionary — not a stringified dictionary.  
+      - Use **double quotes** for all keys and string values.  
+      - Escape all newlines inside table strings using `\\n`.  
+      - Do **not** use single quotes, ellipses (`...`), or trailing commas.
 
-    - `images`: A JSON object mapping visual elements (e.g., charts, diagrams).
-        - Keys must match placeholders like `"image_1"` in `text_content`.
-        - Values should be bounding boxes: `[x_min, y_min, x_max, y_max]`.
+    - `images`: A JSON object mapping visual elements (e.g., charts, diagrams).  
+      - Keys must match placeholders like `"image_1"` in `text_content`.  
+      - Values should be bounding boxes: `[x_min, y_min, x_max, y_max]`.
 
     - `parse_confidence`: A float between 0 and 1 indicating your confidence in the parsing.
 
     ---
 
     ⚠️ Important:
+
     - Return **only** a valid JSON object conforming exactly to this schema.
     - Do **not** wrap dictionaries in strings or return explanations.
     - Do **not** use Python-style syntax (e.g., single quotes or unquoted keys).
-    - Do **not** include markdown fencing like ````json```, just output raw JSON.
+    - Do **not** include markdown fencing like ````json```.
+    - Every key and string must use **double quotes**.
 
     ---
 
-    Now parse the following document page:
+    Now parse the following document page.
 
 image_description:
   provider: google_genai

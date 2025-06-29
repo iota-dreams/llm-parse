@@ -1,4 +1,5 @@
 from datetime import datetime
+from enum import Enum
 from pathlib import Path
 from typing import Dict, List, Optional, Union
 
@@ -10,6 +11,11 @@ from .validators import parse_loose_dict
 class SafetySetting(BaseModel):
     category: str
     threshold: str
+
+
+class TableHandler(str, Enum):
+    markdown = "markdown"
+    html = "html"
 
 
 class LLMConfig(BaseModel):
@@ -28,10 +34,12 @@ class LLMConfig(BaseModel):
 
 class LLMParse(BaseModel):
     """
-    Structured response format for document parsing. The `text_content` field contains
-    the main extracted text with placeholder keys (e.g., {{table_1}}, {{image_1}})
-    embedded where visual elements occurred. The `tables` and `images` fields provide
-    the content for those keys.
+    Structured response format for document parsing.
+
+    - `text_content`: Extracted text with placeholders like {{table_1}}, {{image_1}}.
+    - `tables`: Mapping of placeholders to table content in HTML or Markdown.
+    - `images`: Mapping of placeholders to image bounding boxes.
+    - `parse_confidence`: Confidence score from 0 to 1.
 
     This structure enables clean rendering, post-processing, and semantic indexing.
     """
@@ -48,8 +56,8 @@ class LLMParse(BaseModel):
     )
     tables: Optional[Dict[str, str]] = Field(
         default_factory=dict,
-        description="Dictionary mapping table placeholders (e.g., 'table_1') to table"
-        "content as HTML or Markdown.",
+        description="Dictionary mapping table placeholders (e.g., 'table_1') to table "
+        "content as {{table_format}} (HTML or Markdown).",
     )
     parse_confidence: Optional[float] = Field(
         None,

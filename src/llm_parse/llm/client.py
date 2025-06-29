@@ -8,7 +8,7 @@ from langchain_core.messages import BaseMessage
 from PIL import Image as PILImage
 from pydantic import BaseModel, ValidationError
 
-from ..models import LLMConfig
+from ..models import LLMConfig, TableHandler
 from ..utils import build_prompt, get_logger
 
 LLMOutput = Union[str, dict, list, BaseModel]
@@ -17,8 +17,9 @@ logger = get_logger(__name__)
 
 def call_llm(
     config: LLMConfig,
-    user_question: Optional[str] = None,
     response_model: Optional[Type[BaseModel]] = None,
+    table_handler: Optional[TableHandler] = TableHandler.html,
+    user_question: Optional[str] = None,
     image: Optional[PILImage.Image] = None,
 ) -> LLMOutput:
     """
@@ -29,10 +30,17 @@ def call_llm(
     ----------
     config : LLMConfig
         Configuration containing model, provider, prompt, etc.
+        response_model : Type[BaseModel]
+        Pydantic model class defining the expected structure of the LLM response.
+        The model should match the structure used in parsing logic.
+    table_handler : str
+        Controls how extracted tables are formatted in the structured output.
+        Accepted values are:
+            - "html": Tables are returned as HTML strings.
+            - "markdown": Tables are returned using Markdown table syntax.
+        Defaults to "html".
     user_question : str, optional
         The user's question or prompt.
-    response_model : Type[BaseModel], optional
-        A Pydantic model to parse the response into structured format.
     image : PIL.Image.Image, optional
         Optional image input. If not provided, falls back to `config.image_path`.
 
@@ -59,7 +67,12 @@ def call_llm(
     )
 
     # Build prompt with optional image support
-    messages = build_prompt(config, user_question, image=image)
+    messages = build_prompt(
+        config=config,
+        table_handler=table_handler,
+        user_question=user_question,
+        image=image,
+    )
 
     logger.info(f"Calling model: {config.model_name}")
     try:

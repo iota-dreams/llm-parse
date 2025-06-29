@@ -4,7 +4,7 @@ from typing import Optional
 
 from llm_parse.file_handlers import PDFHandler
 from llm_parse.llm.dispatcher import dispatch_llm_request
-from llm_parse.models.models import LLMConfig, LLMParse
+from llm_parse.models import LLMConfig, LLMParse, TableHandler
 from llm_parse.utils import load_config
 
 logger = logging.getLogger("LLM_parser")
@@ -15,19 +15,46 @@ os.environ["GOOGLE_API_KEY"] = os.getenv("gemini_api_key") or ""
 def process_pdf_with_llm(
     file_path: str,
     config: LLMConfig,
-    user_question: Optional[str] = None,
     response_model: type = LLMParse,
+    table_handler: Optional[TableHandler] = TableHandler.html,
+    user_question: Optional[str] = None,
     password: str = "",
 ) -> None:
     """
     Process a PDF document by sending each page as an image to an LLM dispatcher.
 
-    Parameters:
-        file_path (str): Path or URL to the PDF document.
-        user_question (str): Question or prompt to ask the LLM for each page.
-        config (LLMConfig): LLM configuration (provider, model, temperature, etc.).
-        response_model (Type[BaseModel]): Expected structure of the LLM response.
-        password (str): Optional password for encrypted PDFs.
+    Each page of the PDF is converted to an image and sent to a language model for
+    parsing and structured response generation. Tables, text, and visual elements
+    can be extracted based on the response model and formatting preferences.
+
+    Parameters
+    ----------
+    file_path : str
+        Path or URL to the PDF document. Can be a local file system path or a remote
+        link.
+
+    user_question : str
+        Question or instruction to pass to the LLM for each page. This guides the
+        parsing or summarization behavior of the model.
+
+    response_model : Type[BaseModel]
+        Pydantic model class defining the expected structure of the LLM response.
+        The model should match the structure used in parsing logic.
+
+    table_handler : str
+        Controls how extracted tables are formatted in the structured output.
+        Accepted values are:
+            - "html": Tables are returned as HTML strings.
+            - "markdown": Tables are returned using Markdown table syntax.
+        Defaults to "html".
+
+    config : LLMConfig
+        Configuration object containing LLM provider settings such as model name,
+        temperature, API key, and other generation parameters.
+
+    password : str, optional
+        Password for opening encrypted PDFs. If not provided, encrypted PDFs will
+        fail to open unless accessible without a password.
     """
     handler = PDFHandler(file_path, password=password)
 
@@ -38,8 +65,9 @@ def process_pdf_with_llm(
             try:
                 response = dispatch_llm_request(
                     config=config,
-                    user_question=user_question,
                     response_model=response_model,
+                    table_handler=table_handler,
+                    user_question=user_question,
                     image=image,
                 )
                 logger.info(f"✅ Page {page_number} response: {response}")

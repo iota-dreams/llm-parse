@@ -9,7 +9,7 @@ from langchain_core.messages import BaseMessage, HumanMessage
 from langchain_core.prompts import ChatPromptTemplate
 from PIL import Image as PILImage
 
-from ..models import LLMConfig
+from ..models import LLMConfig, TableHandler
 from .config_utils import load_config
 from .logger import get_logger
 
@@ -77,6 +77,7 @@ def get_llm_provider(config: LLMConfig) -> BaseChatModel:
 
 def build_prompt(
     config: LLMConfig,
+    table_handler: Optional[TableHandler] = TableHandler.html,
     user_question: Optional[str] = None,
     image: Optional[Union[PILImage.Image, str]] = None,
     image_as_base64: bool = True,
@@ -89,6 +90,12 @@ def build_prompt(
     ----------
     config : LLMConfig
         Contains system prompt, provider, and model name.
+    table_handler : str
+        Controls how extracted tables are formatted in the structured output.
+        Accepted values are:
+            - "html": Tables are returned as HTML strings.
+            - "markdown": Tables are returned using Markdown table syntax.
+        Defaults to "html".
     user_question : str, optional
         User's input prompt.
     image : Union[PIL.Image.Image, str], optional
@@ -114,12 +121,16 @@ def build_prompt(
     model_name = getattr(config, "model_name", None)
     system_prompt = config.prompt
     user_input = user_question or ""
+    table_format = getattr(table_handler, "value", "html")
 
     # Text-only messages from prompt template
     prompt = ChatPromptTemplate.from_messages(
-        [("system", system_prompt), ("human", "{user_input}")]
+        [
+            ("system", system_prompt),
+            ("human", "{user_input}"),
+        ]
     )
-    messages = prompt.format_messages(user_input=user_input)
+    messages = prompt.format_messages(user_input=user_input, table_format=table_format)
 
     # Handle multimodal message
     if image:
