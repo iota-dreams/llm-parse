@@ -15,7 +15,6 @@ This project uses:
 - `Sphinx` with reStructuredText for documentation
 - - Automatic requirements extraction via `update_reqs.zsh` from `src/`, `app/`, and `docs/`
 
-
 ---
 
 ## ⚙️ Environment Setup
@@ -27,7 +26,7 @@ This project uses:
 
 ```bash
 brew install direnv mamba
-````
+```
 
 </details>
 
@@ -75,7 +74,6 @@ cd llm_parse
    ```sh
    eval "$(direnv hook zsh)"  # or bash
    ```
-
 2. Allow the project:
 
    ```bash
@@ -209,9 +207,7 @@ To host externally, the project uses **Read the Docs** via `.readthedocs.yaml`.
 
 ## 🧪 Testing (Optional)
 
-> Add testing details here once integrated (e.g., `pytest`, `tox`, etc.)
-
----
+> NA
 
 ## 👥 For New Developers
 
