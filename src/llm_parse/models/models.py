@@ -1,8 +1,10 @@
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import Dict, List, Optional, Union
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+from .validators import parse_loose_dict
 
 
 class SafetySetting(BaseModel):
@@ -25,27 +27,45 @@ class LLMConfig(BaseModel):
 
 
 class LLMParse(BaseModel):
-    """Response format expected from the LLM parser."""
+    """
+    Structured response format for document parsing. The `text_content` field contains
+    the main extracted text with placeholder keys (e.g., {{table_1}}, {{image_1}})
+    embedded where visual elements occurred. The `tables` and `images` fields provide
+    the content for those keys.
+
+    This structure enables clean rendering, post-processing, and semantic indexing.
+    """
 
     text_content: str = Field(
         ...,
-        description="Main text content extracted from the image or document. Should be"
-        "clean and ready for downstream processing.",
+        description="Main parsed text with placeholders like {{table_1}}, {{image_2}}"
+        "in place of visual content.",
     )
-    image_bbox: Optional[List[List[float]]] = Field(
-        None,
-        description="List of bounding boxes for visual elements detected. Each box is "
-        "[x_min, y_min, x_max, y_max].",
+    images: Optional[Dict[str, list[float]]] = Field(
+        default_factory=dict,
+        description="Dictionary mapping image placeholders (e.g., 'image_1') to "
+        "bounding box coordinates: [x_min, y_min, x_max, y_max].",
     )
-    table_extracted: Optional[Union[str, None]] = Field(
-        None,
-        description="Extracted table content, formatted as HTML or Markdown.",
+    tables: Optional[Dict[str, str]] = Field(
+        default_factory=dict,
+        description="Dictionary mapping table placeholders (e.g., 'table_1') to table"
+        "content as HTML or Markdown.",
     )
     parse_confidence: Optional[float] = Field(
         None,
-        description="Optional confidence score (0 to 1) indicating how certain the"
-        " model is about its parsing.",
+        description="Confidence score (0 to 1) representing certainty of this parsing"
+        "result.",
     )
+
+    @field_validator("tables", mode="before")
+    @classmethod
+    def validate_tables(cls, value):
+        return parse_loose_dict(value, field_name="tables")
+
+    @field_validator("images", mode="before")
+    @classmethod
+    def validate_images(cls, value):
+        return parse_loose_dict(value, field_name="images")
 
 
 class LLMParseResult(BaseModel):

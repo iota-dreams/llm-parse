@@ -6,7 +6,7 @@ from urllib.parse import urlparse
 import requests
 from PIL import Image as PILImage
 
-from ..utils import get_logger
+from . import get_logger
 
 logger = get_logger(__name__)
 

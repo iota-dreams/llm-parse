@@ -80,7 +80,7 @@ coverage.xml
 *.env.*
 
 # local bin/ folders
-bin/
+**/bin
 
 # Logs
 *.log
@@ -168,3 +168,4 @@ docker-volume/
 *.sqlite3
 
 **/test_dev.py
+**/data

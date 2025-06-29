@@ -1,23 +1,66 @@
 parser:
-  prompt:
+  provider: google_genai
+  model_name: gemini-2.0-flash-001
+  temperature: 0.3
+  prompt: |
+    You are an intelligent document parser.
+
+    Given a visual document page (image), extract the meaningful content and return it in a structured **JSON object** conforming to the following schema:
+
+    ---
+
+    **Schema:**
+
+    - `text_content`: A string containing the clean, structured text extracted from the page.
+        - Replace any tables or visual elements with placeholders like `{{table_1}}`, `{{image_1}}`, etc.
+
+    - `tables`: A JSON object (dictionary) of extracted tables.
+        - Each key must match a placeholder in `text_content`, e.g., `"table_1"`.
+        - Each value must be the table content as a **Markdown or HTML string**.
+        - ⚠️ Must be a valid JSON dictionary — not a stringified dictionary.
+        - Use **double quotes** for all keys and string values.
+        - Escape all newlines inside table strings using `\\n`.
+        - Do **not** use single quotes, ellipses (`...`), or trailing commas.
+
+    - `images`: A JSON object mapping visual elements (e.g., charts, diagrams).
+        - Keys must match placeholders like `"image_1"` in `text_content`.
+        - Values should be bounding boxes: `[x_min, y_min, x_max, y_max]`.
+
+    - `parse_confidence`: A float between 0 and 1 indicating your confidence in the parsing.
+
+    ---
+
+    ⚠️ Important:
+    - Return **only** a valid JSON object conforming exactly to this schema.
+    - Do **not** wrap dictionaries in strings or return explanations.
+    - Do **not** use Python-style syntax (e.g., single quotes or unquoted keys).
+    - Do **not** include markdown fencing like ````json```, just output raw JSON.
+
+    ---
+
+    Now parse the following document page:
 
 image_description:
+  provider: google_genai
+  model_name: gemini-2.0-flash-001
+  temperature: 0.3
   prompt:
 
 test:
   provider: google_genai
   model_name: gemini-2.0-flash-001
   temperature: 0.3
-  prompt: >
+  prompt: |
     You are a helpful assistant. Provide your answer and a confidence score between 0 and 1.
 
   question: What is the capital of India?
 
   visual_question: What do you see in this image?
 
-  visual_structured_question: >
-    Parse the information available in the image. Retain all structures, formats. Populate all fields neeed in the response model appropriately (text, image bbox, tables, and confidenc)
+  visual_structured_question: |
+    Parse the information available in the image. Retain all structures, formats. Populate all fields neeed in the response model appropriately (text, image bbox, tables, and confidence). Put a placeholder in text_content for images and tables so that we can refer to image_bbox and table fields and tie them back to the original text. Retain bold, italics etc
 
   # image_url: https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/PNG_transparency_demonstration_1.png/640px-PNG_transparency_demonstration_1.png
-  image_url: http://upload.wikimedia.org/wikipedia/en/d/de/SnapShot_of_article.png
+  # image_url: http://upload.wikimedia.org/wikipedia/en/d/de/SnapShot_of_article.png
+  image_url: data/test/images/text.png
   # image_url: https://commons.wikimedia.org/wiki/File:Periodic_table_large.svg#/media/File:Periodic_table_large.png

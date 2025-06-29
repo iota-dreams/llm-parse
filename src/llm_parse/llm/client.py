@@ -64,6 +64,7 @@ def call_llm(
     logger.info(f"Calling model: {config.model_name}")
     try:
         if response_model:
+            # structured_llm = llm.with_structured_output(response_model)
             structured_llm = llm.with_structured_output(
                 response_model, include_raw=True
             )
