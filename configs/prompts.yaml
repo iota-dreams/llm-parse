@@ -11,7 +11,7 @@ parser:
 
     **Schema:**
 
-    - `text_content`: A string containing the clean, structured text extracted from the page. Keep the main response as markdown flavored for the text
+    - `text_content`: A string containing the clean, structured text extracted from the page. Keep the main response as markdown flavored for the text. Feel free to use Latex for mathematical equation representations
       - Replace any tables or visual elements with placeholders like `{{table_1}}`, `{{image_1}}`, with double `{{}}` etc.
 
     - `tables`: A JSON object (dictionary) of extracted tables.
