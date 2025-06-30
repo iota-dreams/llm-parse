@@ -79,6 +79,7 @@ def process_pdf_with_llm(
         raise RuntimeError("PDF document not loaded correctly.")
 
     parsed_pdf = []
+    total_pages = handler.total_pages
     try:
         for (
             page_number,
@@ -112,6 +113,7 @@ def process_pdf_with_llm(
                     parse=llm_parse,
                     file_name=handler.file_name,
                     page_number=page_number,
+                    total_pages=total_pages,
                     page_dimensions=(page_width, page_height),
                     image_bbox_guide=image_bbox_guide,
                 )

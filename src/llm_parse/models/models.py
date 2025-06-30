@@ -1,7 +1,7 @@
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Annotated, Dict, List, Optional, Tuple, Union
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -92,14 +92,19 @@ class LLMParseResult(BaseModel):
     Output of the LLM parser along with metadata and config used.
     """
 
-    config: LLMConfig  # The config that was used to make the call
-    parse: LLMParse  # The actual parsed result
+    # The config that was used to make the call
+    config: LLMConfig
+    # The actual parsed result
+    parse: LLMParse
     file_name: str
     page_number: int
+    total_pages: Annotated[int, Field(ge=1)] = 1
     image_bbox_guide: Optional[Dict[str, List[float]]] = None
     hyperlink_guide: Optional[List[str]] = None
-    page_dimensions: Optional[Tuple[float, float]] = None  # (width, height)
-    image_base64: Optional[List[str]] = None  # list of base64-encoded image strings
+    # (width, height)
+    page_dimensions: Optional[Tuple[float, float]] = None
+    # list of base64-encoded image strings
+    image_base64: Optional[List[str]] = None
     tokens_used: Optional[int] = None
     latency_ms: Optional[float] = None
     success: bool = True
