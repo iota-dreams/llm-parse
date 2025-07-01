@@ -83,13 +83,13 @@ class PDFHandler(DocumentHandler):
             try:
                 logger.info(f"Rendering page {page_number + 1} of {self.total_pages}")
                 page = self.document.load_page(page_number)
-                page_width = page.rect.width
-                page_height = page.rect.height
+                pdf_page_width = page.rect.width
+                pdf_page_height = page.rect.height
 
                 pix = page.get_pixmap(dpi=300)  # type: ignore[attr-defined]
                 image = Image.open(io.BytesIO(pix.tobytes("png")))
 
-                yield page_number + 1, image, (page_width, page_height)
+                yield page_number + 1, image, (pdf_page_width, pdf_page_height)
 
             except Exception as e:
                 logger.exception(f"Failed to render page {page_number + 1}")
