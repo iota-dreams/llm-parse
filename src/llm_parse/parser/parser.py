@@ -229,7 +229,7 @@ def process_pdf_with_llm(
                         logger.debug(f"🖼️ Cropped image '{key}' saved at {crop_path}")
                 logger.info(
                     f"{'--'*50}\nParsing completed for the file:page {filename}:"
-                    "{page_number}"
+                    f"{page_number}"
                 )
 
             except Exception as e:
