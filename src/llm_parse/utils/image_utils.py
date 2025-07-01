@@ -1,6 +1,9 @@
-from typing import Dict, List
+from __future__ import annotations
+
+from typing import Dict, List, Optional
 
 import fitz  # PyMuPDF
+from PIL import Image, ImageDraw, ImageFont
 
 from .logger import get_logger
 
@@ -175,3 +178,174 @@ def denormalize_all_bboxes(
         logger.debug("No valid bboxes found to denormalize.")
 
     return denormalized
+
+
+def crop_images_from_bbox(
+    image: Image.Image,
+    image_bbox: Dict[str, List[float]],
+    *,
+    scale_factor: float = 1.0,
+    normalized: bool = False,
+) -> Dict[str, Image.Image]:
+    """
+    Extract cropped regions from an image using bounding box coordinates.
+
+    Parameters
+    ----------
+    image : PIL.Image.Image
+        The source image (e.g., a full-page screenshot or scan).
+    image_bbox : dict[str, list[float]]
+        Dictionary mapping placeholder keys (e.g., "image_1") to bounding boxes:
+        [x_min, y_min, x_max, y_max].
+    scale_factor : float, default 1.0
+        Applied to the bbox coordinates to scale them to the image space.
+        Use this when bbox is in a different unit (e.g., PDF points).
+    normalized : bool, default False
+        Whether the bounding box coordinates are in normalized form (i.e., between 0.0
+        and 1.0).
+
+    Returns
+    -------
+    dict[str, PIL.Image.Image]
+        Dictionary mapping the original keys (e.g., "image_1") to cropped PIL image
+        objects.
+    """
+    cropped_images: Dict[str, Image.Image] = {}
+
+    width, height = image.size
+
+    for key, box in image_bbox.items():
+        if not isinstance(box, list) or len(box) != 4:
+            logger.warning(f"Skipping invalid bbox for key: {key}")
+            continue
+
+        x_min, y_min, x_max, y_max = box
+
+        if normalized:
+            x_min *= width
+            x_max *= width
+            y_min *= height
+            y_max *= height
+
+        x_min, y_min, x_max, y_max = [
+            int(coord * scale_factor) for coord in (x_min, y_min, x_max, y_max)
+        ]
+
+        x_min = max(0, min(x_min, width))
+        x_max = max(0, min(x_max, width))
+        y_min = max(0, min(y_min, height))
+        y_max = max(0, min(y_max, height))
+
+        if x_max <= x_min or y_max <= y_min:
+            logger.warning(f"Invalid crop region for key {key}: zero or negative size.")
+            continue
+
+        try:
+            cropped = image.crop((x_min, y_min, x_max, y_max))
+            cropped_images[key] = cropped
+            logger.debug(
+                f"Cropped image '{key}' at [{x_min}, {y_min}, {x_max}, {y_max}]"
+            )
+        except Exception as e:
+            logger.exception(f"Failed to crop image for key '{key}': {e}")
+
+    return cropped_images
+
+
+def annotate_image_with_bbox(
+    image: Image.Image,
+    image_bbox: Dict[str, List[float]],
+    *,
+    scale_factor: float = 1.0,
+    normalized: bool = False,
+    font_size: int = 14,
+    color_map: Optional[Dict[str, str]] = None,
+) -> Image.Image:
+    """
+    Draw bounding boxes and key labels (e.g. ``image_1``) on a copy of *image*.
+
+    Parameters
+    ----------
+    image : PIL.Image.Image
+        The source image to annotate.
+    image_bbox : dict[str, list[float]]
+        Mapping from placeholder keys (``"image_1"``, ``"table_3"`` …)
+        to bounding-box coordinates ``[x_min, y_min, x_max, y_max]``.
+    scale_factor : float, default 1.0
+        Multiplier applied to bbox coordinates after any normalisation.
+    normalized : bool, default False
+        Set ``True`` when bbox coordinates are relative numbers in ``[0, 1]``.
+    font_size : int, default 14
+        Size of the text labels in points.
+    color_map : dict[str, str], optional
+        Optional custom color map for prefixes like "image", "table", etc.
+
+    Returns
+    -------
+    PIL.Image.Image
+        A copy of the image with boxes and labels drawn.
+    """
+    default_map = {
+        "image": "#FF0000",
+        "table": "#00FF00",
+        "figure": "#FFA500",
+        "link": "#0000FF",
+        "hyperlink": "#0000FF",
+    }
+
+    effective_map = {**default_map, **(color_map or {})}
+    effective_map["link"] = effective_map["hyperlink"] = "#0000FF"
+
+    annotated = image.copy()
+    draw = ImageDraw.Draw(annotated)
+    width, height = image.size
+
+    try:
+        font = ImageFont.truetype("arial.ttf", font_size)
+    except OSError:
+        font = ImageFont.load_default()
+        logger.warning("Falling back to default font for annotation labels.")
+
+    for key, box in image_bbox.items():
+        if not isinstance(box, list) or len(box) != 4:
+            logger.warning(f"Skipping invalid bbox entry for key: {key}")
+            continue
+
+        x_min, y_min, x_max, y_max = box
+
+        if normalized:
+            x_min *= width
+            x_max *= width
+            y_min *= height
+            y_max *= height
+
+        x_min, y_min, x_max, y_max = [
+            int(coord * scale_factor) for coord in (x_min, y_min, x_max, y_max)
+        ]
+
+        x_min = max(0, min(x_min, width))
+        x_max = max(0, min(x_max, width))
+        y_min = max(0, min(y_min, height))
+        y_max = max(0, min(y_max, height))
+
+        prefix = key.split("_", 1)[0]
+        box_colour = effective_map.get(prefix, "#FF00FF")
+
+        draw.rectangle([x_min, y_min, x_max, y_max], outline=box_colour, width=2)
+
+        label = key
+        text_w = font.getlength(label)
+        text_h = font_size
+
+        label_x = x_min + 2
+        label_y = y_min + 2
+
+        draw.rectangle(
+            [label_x, label_y, label_x + text_w + 4, label_y + text_h + 4],
+            fill=box_colour,
+        )
+        draw.text((label_x + 2, label_y + 2), label, fill="white", font=font)
+
+        logger.debug(f"Annotated bbox '{key}' at [{x_min}, {y_min}, {x_max}, {y_max}]")
+
+    return annotated
