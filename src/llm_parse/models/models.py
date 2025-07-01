@@ -155,10 +155,16 @@ class LLMParseResult(BaseModel):
         "(width, height). (page.rect.width and page.rect.height)",
     )
 
-    image_base64: Optional[List[str]] = Field(
+    image_base64: Optional[Dict[str, str]] = Field(
         default=None,
-        description="List of base64-encoded image representations extracted from the"
-        "page.",
+        description="Optional dictionary mapping image placeholder keys "
+        "(e.g., 'image_1') to base64-encoded cropped image strings from the page.",
+    )
+
+    image_paths: Optional[Dict[str, str]] = Field(
+        default=None,
+        description="Optional dictionary mapping image placeholder keys "
+        "(e.g., 'image_1') to file paths of the saved cropped images on disk.",
     )
 
     tokens_used: Optional[int] = Field(

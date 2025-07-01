@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from base64 import b64encode
+from io import BytesIO
 from typing import Dict, List, Optional
 
 import fitz  # PyMuPDF
@@ -349,3 +351,12 @@ def annotate_image_with_bbox(
         logger.debug(f"Annotated bbox '{key}' at [{x_min}, {y_min}, {x_max}, {y_max}]")
 
     return annotated
+
+
+def encode_image_to_base64(image: Image.Image) -> str:
+    """
+    Encodes a PIL Image to a base64 string in PNG format.
+    """
+    buffer = BytesIO()
+    image.save(buffer, format="PNG")
+    return b64encode(buffer.getvalue()).decode("utf-8")

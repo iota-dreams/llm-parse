@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 from llm_parse.file_handlers import PDFHandler
 from llm_parse.llm.dispatcher import dispatch_llm_request
@@ -9,6 +9,7 @@ from llm_parse.post_processing import postprocess_llm_response
 from llm_parse.utils import (
     annotate_image_with_bbox,
     crop_images_from_bbox,
+    encode_image_to_base64,
     ensure_output_dir,
     extract_image_bboxes_from_page_obj,
     get_logger,
@@ -30,53 +31,74 @@ def process_pdf_with_llm(
     password: Optional[str] = "",
     write_to_disk: Optional[bool] = False,
     output_dir: Optional[str] = "",
+    return_images: Literal["base64", "path", "none"] = "base64",
 ) -> List[LLMParseResult]:
     """
     Process a PDF document by sending each page as an image to an LLM dispatcher.
 
-    Each page of the PDF is converted to an image and sent to a language model for
-    parsing and structured response generation. Tables, text, and visual elements
-    can be extracted based on the response model and formatting preferences.
+    Converts each page of a PDF into an image and dispatches it to a large language
+    model (LLM) for structured parsing. The output includes extracted text with
+    placeholders, tables, image bounding boxes, and additional metadata. Users can
+    customize how image crops are returned and whether outputs should be saved to disk.
 
     Parameters
     ----------
     file_path : str
-        Path or URL to the PDF document. Can be a local file system path or a remote
-        link.
-
-    user_question : str
-        Question or instruction to pass to the LLM for each page. This guides the
-        parsing or summarization behavior of the model.
-
-    response_model : Type[BaseModel]
-        Pydantic model class defining the expected structure of the LLM response.
-        The model should match the structure used in parsing logic.
-
-    table_handler : str
-        Controls how extracted tables are formatted in the structured output.
-        Accepted values are:
-            - "html": Tables are returned as HTML strings.
-            - "markdown": Tables are returned using Markdown table syntax.
-        Defaults to "html".
-
-    denormalize_images : bool, optional
-        Whether to convert image bounding boxes from normalized to absolute coordinates.
+        Path or URL to the PDF document. Can be a local file or a remote resource.
 
     config : LLMConfig
-        Configuration object containing LLM provider settings such as model name,
-        temperature, API key, and other generation parameters.
+        Configuration for the LLM invocation (e.g., model name, temperature, API key).
+
+    response_model : Type[BaseModel], optional
+        Pydantic model representing the expected LLM response structure.
+        Defaults to `LLMParse`.
+
+    table_handler : TableHandler, optional
+        Strategy to format tables in the output. Options:
+            - `TableHandler.html`: Output tables as HTML (default)
+            - `TableHandler.markdown`: Output tables in Markdown
+
+    denormalize_images : bool, optional
+        Whether to convert bounding boxes from normalized coordinates (0-1 range)
+        to pixel-space (absolute image dimensions). Defaults to True.
+
+    user_question : str, optional
+        Optional natural language prompt or question to guide the LLM's parsing
+        or summarization for each page.
 
     password : str, optional
-        Password for opening encrypted PDFs. If not provided, encrypted PDFs will
-        fail to open unless accessible without a password.
+        Password for opening password-protected/encrypted PDFs. Empty by default.
+
+    write_to_disk : bool, optional
+        If True, saves output JSONs, annotated page images, and cropped regions to disk
+        in a structured folder format. Defaults to False.
+
+    output_dir : str, optional
+        Base directory to save output if `write_to_disk=True`. Each page gets its
+        own subdirectory under this.
+
+    return_images : {'base64', 'path', 'none'}, optional
+        Controls how cropped image regions are embedded in the return payload:
+            - 'base64': Embed base64-encoded cropped images in the response (default)
+            - 'path': Save images to disk and include their file paths in the response
+            - 'none': Skip image crops entirely in the return payload
+
+        If 'path' is chosen but `write_to_disk` is False, a warning is logged and
+        images will not be included in the response.
+
+    Returns
+    -------
+    List[LLMParseResult]
+        A list of structured parsing results, one per page, each containing extracted
+        content, metadata, and optional image crops depending on configuration.
 
     Raises
     ------
     RuntimeError
-        If the document loading fails or is None.
+        If the PDF cannot be loaded successfully (e.g., corrupt or unreadable).
     """
-    handler = PDFHandler(file_path, password=password or "")
 
+    handler = PDFHandler(file_path, password=password or "")
     if handler.document is None:
         raise RuntimeError("PDF document not loaded correctly.")
 
@@ -103,13 +125,12 @@ def process_pdf_with_llm(
                 )
                 logger.info(f"✅ Page {page_number} response captured")
                 logger.debug(f"✅ Page {page_number} response: {llm_parse}")
-                # To handle when llm_parse is an unknown unhandled error when we
-                # manually asked to return LLM response could not be parsed or matched
-                # expected format
+
                 if isinstance(llm_parse, str):
                     raise TypeError(
                         "Expected structured LLMParse response, got raw string."
                     )
+
                 parsed_page = LLMParseResult(
                     config=config,
                     parse=llm_parse,
@@ -117,64 +138,75 @@ def process_pdf_with_llm(
                     page_number=page_number,
                     total_pages=total_pages,
                     page_dimensions=(image.width, image.height),
+                    pdf_page_dimensions=(pdf_page_width, pdf_page_height),
                     image_bbox_guide=image_bbox_guide,
                 )
 
-                parsed_page.page_dimensions = (image.width, image.height)
-                parsed_page.pdf_page_dimensions = (
-                    pdf_page_width,
-                    pdf_page_height,
-                )
-
                 parsed_page = postprocess_llm_response(
-                    result=parsed_page, denormalize_images=denormalize_images
+                    result=parsed_page,
+                    denormalize_images=denormalize_images,
                 )
                 parsed_pdf.append(parsed_page)
-                # Determine if the bounding boxes are normalized (i.e., between 0-1)
-                # This should match the flag passed to annotate/crop functions.
+
                 is_normalized = not denormalize_images
 
-                # Annotate image with bounding boxes for visual inspection/debugging
                 annotated_image = annotate_image_with_bbox(
                     image=image,
                     image_bbox=llm_parse.image_bbox,
                     normalized=is_normalized,
                 )
-
-                # Crop individual regions from the page based on bbox
                 cropped_images = crop_images_from_bbox(
                     image=image,
                     image_bbox=llm_parse.image_bbox,
                     normalized=is_normalized,
                 )
 
+                if return_images == "base64":
+                    parsed_page.image_base64 = {
+                        k: encode_image_to_base64(img)
+                        for k, img in cropped_images.items()
+                    }
+
+                elif return_images == "path":
+                    if not write_to_disk:
+                        logger.warning(
+                            "⚠️ return_images='path' was requested but "
+                            "write_to_disk=False. No image paths will be saved in the"
+                            "response."
+                        )
+                    else:
+                        parsed_page.image_paths = {
+                            k: str(
+                                (
+                                    Path(output_dir or ".")
+                                    / handler.file_name.replace(".", "_")
+                                    / f"page_{page_number:03d}"
+                                    / f"{k}.png"
+                                )
+                            )
+                            for k in cropped_images
+                        }
+
                 if write_to_disk:
                     filename = handler.file_name.replace(".", "_")
                     page_tag = f"page_{page_number:03d}"
-
-                    # Build full target directory path
                     output_dir_path = Path(output_dir or ".") / filename / page_tag
-
-                    # Ensure directory is created (safe even if it exists)
                     output_dir_path = ensure_output_dir(output_dir_path)
                     if output_dir_path is None:
                         logger.warning(
-                            f"⚠️ Skipping disk write: could not ensure output directory"
+                            f"⚠️ Skipping disk write: could not ensure output directory "
                             f"for page {page_number}"
                         )
                         return []
 
-                    # Save structured JSON response
                     output_path = output_dir_path / "response.json"
                     save_model(model=parsed_page, output_path=output_path)
                     logger.info(f"✅ Response saved at {output_path}")
 
-                    # Save annotated visual for inspection
                     annotated_path = output_dir_path / "annotated.png"
                     annotated_image.save(annotated_path)
                     logger.info(f"🖼️ Annotated image saved at {annotated_path}")
 
-                    # Save each cropped region
                     for key, cropped_img in cropped_images.items():
                         crop_path = output_dir_path / f"{key}.png"
                         cropped_img.save(crop_path)

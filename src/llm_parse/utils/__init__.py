@@ -4,6 +4,7 @@ from .image_utils import (
     annotate_image_with_bbox,
     crop_images_from_bbox,
     denormalize_all_bboxes,
+    encode_image_to_base64,
     extract_image_bboxes_from_page_obj,
 )
 from .llm_utils import build_prompt, get_llm_provider, supports_multimodal
