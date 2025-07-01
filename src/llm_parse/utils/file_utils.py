@@ -17,11 +17,16 @@ def ensure_output_dir(output_dir: Union[str, Path, None]) -> Union[Path, None]:
     Returns:
         Path: The Path object or None if not set.
     """
-    if output_dir:
-        path = Path(output_dir)
-        path.mkdir(parents=True, exist_ok=True)
-        return path
-    return None
+    if not output_dir:
+        return None
+
+    if not isinstance(output_dir, (str, Path)):
+        raise TypeError(f"output_dir must be str, Path or None, got {type(output_dir)}")
+
+    path = Path(output_dir)
+    path.mkdir(parents=True, exist_ok=True)
+    logger.debug(f"Ensured output directory exists: {path}")
+    return path
 
 
 def save_model(
