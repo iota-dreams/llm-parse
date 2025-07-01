@@ -1,7 +1,7 @@
 import io
 import logging
 from pathlib import Path
-from typing import Iterator, Tuple, Union
+from typing import Iterator, Optional, Tuple, Union
 from urllib.parse import urlparse
 
 import fitz  # PyMuPDF
@@ -71,15 +71,31 @@ class PDFHandler(DocumentHandler):
 
     def extract_screenshots(
         self,
+        start_page: int = 1,
+        end_page: Optional[int] = None,
     ) -> Iterator[Tuple[int, Image.Image, Tuple[float, float]]]:
         """
-        Generator that yields screenshots of each page in order.
+        Generator that yields screenshots of each page from start_page to end_page
+        (inclusive).
+
+        Parameters:
+            start_page (int): 1-based index of first page to process.
+            end_page (Optional[int]): 1-based index of last page to process (inclusive).
 
         Yields:
             Tuple[int, Image.Image, Tuple[float, float]]:
                 (1-based page number, PIL Image, (width, height) in PDF space)
         """
-        for page_number in range(self.total_pages):
+        if start_page < 1 or start_page > self.total_pages:
+            raise ValueError(f"start_page must be between 1 and {self.total_pages}")
+
+        end_page = end_page or self.total_pages
+        if end_page < start_page or end_page > self.total_pages:
+            raise ValueError(
+                f"end_page must be between {start_page} and {self.total_pages}"
+            )
+
+        for page_number in range(start_page - 1, end_page):
             try:
                 logger.info(f"Rendering page {page_number + 1} of {self.total_pages}")
                 page = self.document.load_page(page_number)

@@ -31,6 +31,8 @@ os.environ["GOOGLE_API_KEY"] = os.getenv("gemini_api_key") or ""
 def process_pdf_with_llm(
     file_path: str,
     config: LLMConfig,
+    start_page: int = 1,
+    end_page: Optional[int] = None,
     response_model: type = LLMParse,
     table_handler: Optional[TableHandler] = TableHandler.html,
     denormalize_images: bool = True,
@@ -55,6 +57,12 @@ def process_pdf_with_llm(
 
     config : LLMConfig
         Configuration for the LLM invocation (e.g., model name, temperature, API key).
+
+    start_page (int):
+        1-based index of first page to process.
+
+    end_page (Optional[int]):
+        1-based index of last page to process (inclusive).
 
     response_model : Type[BaseModel], optional
         Pydantic model representing the expected LLM response structure.
@@ -116,7 +124,7 @@ def process_pdf_with_llm(
             page_number,
             image,
             (pdf_page_width, pdf_page_height),
-        ) in handler.extract_screenshots():
+        ) in handler.extract_screenshots(start_page=start_page, end_page=end_page):
             logger.info(f"Dispatching LLM request for page {page_number}...")
             image_bbox_guide = extract_image_bboxes_from_page_obj(
                 doc=handler.document, page_number=page_number, normalize=True
@@ -168,8 +176,8 @@ def process_pdf_with_llm(
                     normalized=is_normalized,
                 )
 
+                filename = handler.file_name.replace(".", "_")
                 if write_to_disk:
-                    filename = handler.file_name.replace(".", "_")
                     page_tag = f"page_{page_number:03d}"
                     output_dir_path = Path(output_dir or ".") / filename / page_tag
                     output_dir_path = ensure_output_dir(output_dir_path)
@@ -219,6 +227,10 @@ def process_pdf_with_llm(
                         crop_path = output_dir_path / f"{key}.png"
                         cropped_img.save(crop_path)
                         logger.debug(f"🖼️ Cropped image '{key}' saved at {crop_path}")
+                logger.info(
+                    f"{'--'*50}\nParsing completed for the file:page {filename}:"
+                    "{page_number}"
+                )
 
             except Exception as e:
                 logger.error(f"❌ LLM failed for page {page_number}: {e}")
