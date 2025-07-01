@@ -16,6 +16,14 @@ parser:
     - `text_content`: A string containing the clean, structured text extracted from the page. Keep the main response as markdown flavored for the text. Feel free to use Latex for mathematical equation representations
       - Replace any tables or visual elements with placeholders like `{{table_1}}`, `{{image_1}}`, with double `{{}}` etc.
 
+    - `image_bbox`: A JSON object mapping visual elements (e.g., charts, diagrams, figures).
+      - If no visual elements are found, return an empty object: `{{}}`.
+      - Each key must match an image placeholder in `text_content`, such as `"image_1"`.
+      - Each value should be a bounding box in the format `[x_min, y_min, x_max, y_max]`.
+      - Bounding box coordinates must be **normalized to the range [0.0, 1.0]** relative to the image/page dimensions:
+        - `(0.0, 0.0)` represents the top-left corner
+        - `(1.0, 1.0)` represents the bottom-right corner
+
     - `tables`: A JSON object (dictionary) of extracted tables.
       - If no tables are present, return an empty object: `{{}}`.
       - Each key must match a placeholder in `text_content`, e.g., `"table_1"`.
@@ -24,14 +32,10 @@ parser:
       - Use **double quotes** for all keys and string values.
       - Escape all newlines in the table string using `\\n`.
       - Do **not** use single quotes, ellipses (`...`), or trailing commas.
-
-    - `image_bbox`: A JSON object mapping visual elements (e.g., charts, diagrams, figures).
-      - If no visual elements are found, return an empty object: `{{}}`.
-      - Each key must match an image placeholder in `text_content`, such as `"image_1"`.
-      - Each value should be a bounding box in the format `[x_min, y_min, x_max, y_max]`.
-      - Bounding box coordinates must be **normalized to the range [0.0, 1.0]** relative to the image/page dimensions:
-        - `(0.0, 0.0)` represents the top-left corner
-        - `(1.0, 1.0)` represents the bottom-right corner
+      - Add borders and lines and borders appropriately exactly as they appear in the input image.
+      - Watchout for merged cells, nested tables etc. Handle and capture them properly.
+      - Make sure that the entire result is json serilizable.
+      - Understand and parse nested tables properly
 
     - `parse_confidence`: A float between 0 and 1 indicating your confidence in the parsing.
 
@@ -57,7 +61,7 @@ parser:
     - Return **only** a valid JSON object conforming exactly to this schema.
     - Do **not** wrap dictionaries in strings or return explanations.
     - Do **not** use Python-style syntax (e.g., single quotes, unquoted keys).
-    - Do **not** include Markdown fencing such as ````json```.
+    - Do **not** include Markdown fencing such as ````json````` at the beginning or at the end. This will break my downstream task
     - Do **not** return `null`; use `{{}}` (empty object), `""` (empty string), or `0.0` as appropriate.
     - Use **double quotes** for all keys and string values.
 
