@@ -89,24 +89,100 @@ class LLMParse(BaseModel):
 
 class LLMParseResult(BaseModel):
     """
-    Output of the LLM parser along with metadata and config used.
+    Encapsulates the full result of a document parsing run using an LLM.
+
+    This includes the actual parsed content (`LLMParse`), metadata about the file and
+    page processed, guidance used for rendering or cropping
+    (like bounding boxes or hyperlinks),resource usage, timing, and overall
+    success status.
     """
 
-    # The config that was used to make the call
-    config: LLMConfig
-    # The actual parsed result
-    parse: LLMParse
-    file_name: str
-    page_number: int
-    total_pages: Annotated[int, Field(ge=1)] = 1
-    image_bbox_guide: Optional[Dict[str, List[float]]] = None
-    hyperlink_guide: Optional[List[str]] = None
-    # (width, height)
-    page_dimensions: Optional[Tuple[float, float]] = None
-    # list of base64-encoded image strings
-    image_base64: Optional[List[str]] = None
-    tokens_used: Optional[int] = None
-    latency_ms: Optional[float] = None
-    success: bool = True
-    error_message: Optional[str] = None
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    config: LLMConfig = Field(
+        ...,
+        description="Configuration used for the LLM parsing request.",
+    )
+
+    parse: LLMParse = Field(
+        ...,
+        description="Structured parsing result including text, tables, and image"
+        "references.",
+    )
+
+    file_name: str = Field(
+        ...,
+        description="Name of the input file from which this content was parsed.",
+    )
+
+    page_number: int = Field(
+        ...,
+        description="1-based index of the page parsed in the source document.",
+    )
+
+    total_pages: Annotated[int, Field(ge=1)] = Field(
+        default=1,
+        description="Total number of pages in the input document.",
+    )
+
+    image_bbox_guide: Optional[Dict[str, List[float]]] = Field(
+        default=None,
+        description="Optional guidance obtained from PyMuPDF for image bounding boxes "
+        "(e.g., for cropping). Keys are placeholders like 'image_1', and values are "
+        "[x_min, y_min, x_max, y_max].",
+    )
+
+    image_description: Optional[Dict[str, str]] = Field(
+        default=None,
+        description="Optional dictionary mapping image placeholders (e.g., 'image_1') "
+        "to their natural language descriptions.",
+    )
+
+    hyperlink_guide: Optional[List[str]] = Field(
+        default=None,
+        description="List of hyperlinks (if any) extracted using PyMuPDF"
+        "or associated with the parsed page.",
+    )
+
+    page_dimensions: Optional[Tuple[float, float]] = Field(
+        default=None,
+        description="Dimensions of the image representation of the page in points or "
+        "pixels, as (width, height)."
+        "(Image.open(io.BytesIO(page.get_pixmap(dpi=300).tobytes('png'))))",
+    )
+
+    pdf_page_dimensions: Optional[Tuple[float, float]] = Field(
+        default=None,
+        description="Dimensions of the original page (as pdf) in points or pixels, as "
+        "(width, height). (page.rect.width and page.rect.height)",
+    )
+
+    image_base64: Optional[List[str]] = Field(
+        default=None,
+        description="List of base64-encoded image representations extracted from the"
+        "page.",
+    )
+
+    tokens_used: Optional[int] = Field(
+        default=None,
+        description="Total number of LLM tokens consumed during parsing.",
+    )
+
+    latency_ms: Optional[float] = Field(
+        default=None,
+        description="Time taken (in milliseconds) to process this parse.",
+    )
+
+    success: bool = Field(
+        default=True,
+        description="Indicates whether the parsing operation succeeded.",
+    )
+
+    error_message: Optional[str] = Field(
+        default=None,
+        description="Error message if parsing failed. Present only when `success`"
+        "is False.",
+    )
+
+    timestamp: datetime = Field(
+        default_factory=datetime.utcnow,
+        description="UTC timestamp when the parsing result was generated.",
+    )
