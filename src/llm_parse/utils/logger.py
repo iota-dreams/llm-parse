@@ -40,13 +40,22 @@ class ContextAwareFilter(logging.Filter):
 
 
 class ContextAwareFormatter(logging.Formatter):
+    LOG_COLORS = {
+        "DEBUG": "\033[94m",  # Blue
+        "INFO": "\033[92m",  # Green
+        "WARNING": "\033[93m",  # Yellow
+        "ERROR": "\033[91m",  # Red
+        "CRITICAL": "\033[95m",  # Magenta
+    }
+    RESET = "\033[0m"
+
     def format(self, record: logging.LogRecord) -> str:
         base = (
-            "[%(asctime)s] [%(levelname)s] [%(name)s] "
-            "[%(filename)s:%(funcName)s:%(lineno)d]"
+            "[%(asctime)s] "
+            f"{self.LOG_COLORS.get(record.levelname, '')}[%(levelname)s]{self.RESET} "
+            "[%(name)s] [%(filename)s:%(funcName)s:%(lineno)d]"
         )
 
-        # Conditionally add custom fields
         file_path = getattr(record, "file_path", None)
         if file_path:
             base += f" [file_path: {file_path}]"
