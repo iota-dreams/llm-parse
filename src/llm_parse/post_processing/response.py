@@ -92,7 +92,6 @@ def postprocess_llm_response(
     # Step 5: Fill optional metadata fields if not already set
     # --------------------------------------------
     result.hyperlink_guide = result.hyperlink_guide or None
-    result.image_base64 = result.image_base64 or None
     result.tokens_used = result.tokens_used or None
     result.latency_ms = result.latency_ms or None
     result.success = True

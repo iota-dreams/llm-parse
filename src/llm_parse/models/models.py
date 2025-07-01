@@ -18,6 +18,21 @@ class TableHandler(str, Enum):
     html = "html"
 
 
+class ImageRepresentation(BaseModel):
+    """
+    A unified representation of a cropped image in a parsing response.
+    """
+
+    # e.g., "image_1"
+    key: str
+    path: Optional[str] = None
+    base64: Optional[str] = None
+    format: Optional[str] = "png"
+    # width, height
+    size: Optional[Tuple[int, int]] = None
+    caption: Optional[str] = None
+
+
 class LLMConfig(BaseModel):
     """
     Configuration for the LLM model.
@@ -123,6 +138,12 @@ class LLMParseResult(BaseModel):
         description="Total number of pages in the input document.",
     )
 
+    image_crops: Optional[List[ImageRepresentation]] = Field(
+        default=None,
+        description="List of structured representations for each cropped image region, "
+        "containing both base64 and/or path depending on configuration.",
+    )
+
     image_bbox_guide: Optional[Dict[str, List[float]]] = Field(
         default=None,
         description="Optional guidance obtained from PyMuPDF for image bounding boxes "
@@ -153,18 +174,6 @@ class LLMParseResult(BaseModel):
         default=None,
         description="Dimensions of the original page (as pdf) in points or pixels, as "
         "(width, height). (page.rect.width and page.rect.height)",
-    )
-
-    image_base64: Optional[Dict[str, str]] = Field(
-        default=None,
-        description="Optional dictionary mapping image placeholder keys "
-        "(e.g., 'image_1') to base64-encoded cropped image strings from the page.",
-    )
-
-    image_paths: Optional[Dict[str, str]] = Field(
-        default=None,
-        description="Optional dictionary mapping image placeholder keys "
-        "(e.g., 'image_1') to file paths of the saved cropped images on disk.",
     )
 
     tokens_used: Optional[int] = Field(

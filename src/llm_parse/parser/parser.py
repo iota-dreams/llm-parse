@@ -1,10 +1,17 @@
 import os
+import traceback
 from pathlib import Path
 from typing import List, Literal, Optional
 
 from llm_parse.file_handlers import PDFHandler
 from llm_parse.llm.dispatcher import dispatch_llm_request
-from llm_parse.models import LLMConfig, LLMParse, LLMParseResult, TableHandler
+from llm_parse.models import (
+    ImageRepresentation,
+    LLMConfig,
+    LLMParse,
+    LLMParseResult,
+    TableHandler,
+)
 from llm_parse.post_processing import postprocess_llm_response
 from llm_parse.utils import (
     annotate_image_with_bbox,
@@ -161,32 +168,6 @@ def process_pdf_with_llm(
                     normalized=is_normalized,
                 )
 
-                if return_images == "base64":
-                    parsed_page.image_base64 = {
-                        k: encode_image_to_base64(img)
-                        for k, img in cropped_images.items()
-                    }
-
-                elif return_images == "path":
-                    if not write_to_disk:
-                        logger.warning(
-                            "⚠️ return_images='path' was requested but "
-                            "write_to_disk=False. No image paths will be saved in the"
-                            "response."
-                        )
-                    else:
-                        parsed_page.image_paths = {
-                            k: str(
-                                (
-                                    Path(output_dir or ".")
-                                    / handler.file_name.replace(".", "_")
-                                    / f"page_{page_number:03d}"
-                                    / f"{k}.png"
-                                )
-                            )
-                            for k in cropped_images
-                        }
-
                 if write_to_disk:
                     filename = handler.file_name.replace(".", "_")
                     page_tag = f"page_{page_number:03d}"
@@ -194,10 +175,37 @@ def process_pdf_with_llm(
                     output_dir_path = ensure_output_dir(output_dir_path)
                     if output_dir_path is None:
                         logger.warning(
-                            f"⚠️ Skipping disk write: could not ensure output directory "
-                            f"for page {page_number}"
+                            f"⚠️ Skipping disk write: could not ensure output directory"
+                            f"for page {page_number}. No output directory available"
                         )
                         return []
+
+                    if return_images in ("base64", "path"):
+                        image_crops = []
+
+                        for key, img in cropped_images.items():
+                            image_entry = ImageRepresentation(
+                                key=key,
+                                base64=(
+                                    encode_image_to_base64(img)
+                                    if return_images == "base64"
+                                    else None
+                                ),
+                                path=(
+                                    str(output_dir_path / f"{key}.png")
+                                    if (
+                                        return_images == "path"
+                                        and write_to_disk
+                                        and output_dir_path
+                                    )
+                                    else None
+                                ),
+                                size=img.size,
+                                format="png",
+                            )
+                            image_crops.append(image_entry)
+
+                        parsed_page.image_crops = image_crops
 
                     output_path = output_dir_path / "response.json"
                     save_model(model=parsed_page, output_path=output_path)
@@ -214,6 +222,7 @@ def process_pdf_with_llm(
 
             except Exception as e:
                 logger.error(f"❌ LLM failed for page {page_number}: {e}")
+                logger.error(traceback.format_exc())
 
     finally:
         handler.close()

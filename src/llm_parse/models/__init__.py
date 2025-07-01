@@ -1,4 +1,5 @@
 from .models import (
+    ImageRepresentation,
     LLMConfig,
     LLMParse,
     LLMParseResult,
