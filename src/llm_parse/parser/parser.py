@@ -23,6 +23,9 @@ from llm_parse.utils import (
     save_model,
 )
 
+from .error_handler import handle_llm_failure
+from .response_builder import build_llm_parse_result
+
 logger = get_logger(__name__)
 # Set Gemini API Key (ensure this is set)
 os.environ["GOOGLE_API_KEY"] = os.getenv("gemini_api_key") or ""
@@ -167,16 +170,17 @@ def process_pdf_with_llm(
                         "Expected structured LLMParse response, got raw string."
                     )
 
-                parsed_page = LLMParseResult(
+                parsed_page = build_llm_parse_result(
+                    llm_parse=llm_parse,
                     parser_config=parser_config,
-                    parse=llm_parse,
                     file_name=handler.file_name,
                     page_number=page_number,
                     total_pages=total_pages,
-                    page_dimensions=(image.width, image.height),
+                    image=image,
                     pdf_page_dimensions=(pdf_page_width, pdf_page_height),
                     image_bbox_guide=image_bbox_guide,
                 )
+                parsed_page = 6
 
                 parsed_page = postprocess_llm_response(
                     result=parsed_page,
@@ -275,6 +279,22 @@ def process_pdf_with_llm(
             except Exception as e:
                 logger.error(f"❌ LLM failed for page {page_number}: {e}")
                 logger.error(traceback.format_exc())
+                fallback = handle_llm_failure(
+                    file_name=handler.file_name,
+                    page_number=page_number,
+                    total_pages=total_pages,
+                    parser_config=parser_config,
+                    image=image,
+                    pdf_page_dimensions=(pdf_page_width, pdf_page_height),
+                    image_bbox_guide=image_bbox_guide,
+                    output_dir=output_dir,
+                    write_to_disk=(
+                        write_to_disk if write_to_disk is not None else False
+                    ),
+                    return_images=return_images,
+                    error=e,
+                )
+                parsed_pdf.append(fallback)
 
     finally:
         handler.close()
