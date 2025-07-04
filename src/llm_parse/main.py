@@ -15,7 +15,7 @@ if __name__ == "__main__":
     example_pdf = "data/test/input/pdf/attention_is_all_you_need.pdf"
     # example_pdf = "data/test/input/pdf/empty.pdf"
     enable_image_description = True
-    start_page = 3
+    start_page = 1
     end_page = None
     response_model = LLMParse
     table_handler = TableHandler.html
