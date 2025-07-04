@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import List, Literal, Optional
 
 from llm_parse.file_handlers import PDFHandler
-from llm_parse.llm.dispatcher import dispatch_llm_request
+from llm_parse.llm import dispatch_llm_request, vlm_description
 from llm_parse.models import (
     ImageRepresentation,
     LLMConfig,
@@ -30,7 +30,9 @@ os.environ["GOOGLE_API_KEY"] = os.getenv("gemini_api_key") or ""
 
 def process_pdf_with_llm(
     file_path: str,
-    config: LLMConfig,
+    parser_config: LLMConfig,
+    enable_image_description: bool = False,
+    image_description_config: Optional[LLMConfig] = None,
     start_page: int = 1,
     end_page: Optional[int] = None,
     response_model: type = LLMParse,
@@ -55,8 +57,23 @@ def process_pdf_with_llm(
     file_path : str
         Path or URL to the PDF document. Can be a local file or a remote resource.
 
-    config : LLMConfig
-        Configuration for the LLM invocation (e.g., model name, temperature, API key).
+    parser_config : LLMConfig
+        Configuration for the LLM invocation (e.g., model name, temperature)
+        for parser.
+
+    enable_image_description : bool, default=False
+        If True, each cropped image (based on LLM-provided bounding boxes) will be
+        passed to a visual-language model (VLM) to generate a natural language
+        description. The generated descriptions will be stored in
+        `parsed_page.image_description` as a dictionary mapping image keys
+        (e.g., "image_1") to structured outputs.
+
+        This is useful for tasks that require semantic understanding of visual
+        elements (e.g., document summarization, accessibility, indexing).
+
+    parser_config : LLMConfig
+        Configuration for the LLM invocation (e.g., model name, temperature)
+        for VLM description
 
     start_page (int):
         1-based index of first page to process.
@@ -130,12 +147,16 @@ def process_pdf_with_llm(
                 doc=handler.document, page_number=page_number, normalize=True
             )
             try:
+                # Fallback defaults
+                # image_bbox_guide = kwargs.get("image_bbox_guide", {})
+                table_format = getattr(table_handler, "value", "html")
+
                 llm_parse = dispatch_llm_request(
-                    config=config,
+                    config=parser_config,
                     response_model=response_model,
-                    table_handler=table_handler,
                     user_question=user_question,
                     image=image,
+                    table_format=table_format,
                     image_bbox_guide=image_bbox_guide,
                 )
                 logger.info(f"✅ Page {page_number} response captured")
@@ -147,7 +168,7 @@ def process_pdf_with_llm(
                     )
 
                 parsed_page = LLMParseResult(
-                    config=config,
+                    parser_config=parser_config,
                     parse=llm_parse,
                     file_name=handler.file_name,
                     page_number=page_number,
@@ -175,6 +196,25 @@ def process_pdf_with_llm(
                     image_bbox=llm_parse.image_bbox,
                     normalized=is_normalized,
                 )
+
+                if (
+                    enable_image_description
+                    and cropped_images
+                    and image_description_config
+                ):
+                    prompt = image_description_config.prompt
+
+                    image_descriptions = vlm_description(
+                        images=cropped_images,
+                        config=image_description_config,
+                        prompt=prompt,
+                    )
+
+                    parsed_page.image_description = image_descriptions
+                    parsed_page.image_description_config = image_description_config
+
+                # Append fully populated parsed_page to parsed_pdf
+                parsed_pdf.append(parsed_page)
 
                 filename = handler.file_name.replace(".", "_")
                 if write_to_disk:

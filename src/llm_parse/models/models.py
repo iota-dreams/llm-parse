@@ -47,6 +47,15 @@ class LLMConfig(BaseModel):
     safety_settings: Optional[List[SafetySetting]] = None
 
 
+class ImageDescription(BaseModel):
+    description: str
+    vlm_confidence: Optional[float] = Field(
+        None,
+        description="Confidence score (0 to 1) representing certainty of the image"
+        "description result.",
+    )
+
+
 class LLMParse(BaseModel):
     """
     Structured response format for document parsing.
@@ -112,7 +121,7 @@ class LLMParseResult(BaseModel):
     success status.
     """
 
-    config: LLMConfig = Field(
+    parser_config: LLMConfig = Field(
         ...,
         description="Configuration used for the LLM parsing request.",
     )
@@ -151,10 +160,15 @@ class LLMParseResult(BaseModel):
         "[x_min, y_min, x_max, y_max].",
     )
 
-    image_description: Optional[Dict[str, str]] = Field(
+    image_description_config: Optional[LLMConfig] = Field(
+        default=None,
+        description="Configuration used for the LLM VLM generation request.",
+    )
+
+    image_description: Optional[Dict[str, ImageDescription]] = Field(
         default=None,
         description="Optional dictionary mapping image placeholders (e.g., 'image_1') "
-        "to their natural language descriptions.",
+        "to their structured descriptions.",
     )
 
     hyperlink_guide: Optional[List[str]] = Field(

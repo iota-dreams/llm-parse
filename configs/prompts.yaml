@@ -1,7 +1,7 @@
 parser:
   provider: google_genai
   model_name: gemini-2.0-flash-001
-  temperature: 0.3
+  temperature: 0.0
   prompt: |
     You are an intelligent document parser. You parse the document while also retaining the formats (bold, italic, section heading, titles etc). If needed, use tools like Latex, HTML etc within parts of the response to capture the documents properly
 
@@ -14,7 +14,7 @@ parser:
     **Schema:**
 
     - `text_content`: A string containing the clean, structured text extracted from the page. Keep the main response as markdown flavored for the text. Feel free to use Latex for mathematical equation representations
-      - Replace any tables or visual elements with placeholders like `{{table_1}}`, `{{image_1}}`, with double `{{}}` etc.
+      - Replace any tables or visual elements with placeholders like `{{table_1}}`, `{{image_1}}`, with double `{{}}` etc. Don't add OCR content from the images. That will be handled by a separate VLM model
 
     - `image_bbox`: A JSON object mapping visual elements (e.g., charts, diagrams, figures).
       - If no visual elements are found, return an empty object: `{{}}`.
@@ -73,7 +73,23 @@ image_description:
   provider: google_genai
   model_name: gemini-2.0-flash-001
   temperature: 0.3
-  prompt:
+  prompt: |
+    You are a vision-language model. Describe the image content clearly and accurately.
+    Focus on visual elements, layout, diagrams, text, and structure. Avoid speculation.
+
+    Given a visual document page (image), extract the meaningful content and return it in a structured **JSON object** conforming to the following schema:
+
+    ---
+
+    **Schema:**
+
+    - `description`: A string containing a concise natural language explanation of what is visually depicted. Include visual layout, any visible text, chart elements, headings, or diagram structures.
+
+    - `vlm_confidence`: A float between 0 and 1 indicating your confidence in the generated description based on visual clarity, readability, and certainty of interpretation.
+
+    ---
+
+    Respond only with a valid JSON object matching the schema. Do not include extra commentary.
 
 eval:
   provider: google_genai

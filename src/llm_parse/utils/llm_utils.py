@@ -1,7 +1,7 @@
 import base64
 import io
 import os
-from typing import List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 from langchain.chat_models import init_chat_model
 from langchain_core.language_models.chat_models import BaseChatModel
@@ -9,7 +9,7 @@ from langchain_core.messages import BaseMessage, HumanMessage
 from langchain_core.prompts import ChatPromptTemplate
 from PIL import Image as PILImage
 
-from ..models import LLMConfig, TableHandler
+from ..models import LLMConfig
 from .config_utils import load_config
 from .logger import get_logger
 
@@ -77,43 +77,27 @@ def get_llm_provider(config: LLMConfig) -> BaseChatModel:
 
 def build_prompt(
     config: LLMConfig,
-    table_handler: Optional[TableHandler] = TableHandler.html,
     user_question: Optional[str] = None,
     image: Optional[Union[PILImage.Image, str]] = None,
     image_as_base64: bool = True,
-    image_bbox_guide: Optional[dict] = None,
+    **kwargs: Any,
 ) -> List[BaseMessage]:
     """
-    Build prompt messages using ChatPromptTemplate for text,
-    and structured content blocks for image input (if supported).
+    Builds a list of prompt messages for the LLM, optionally including image and
+    dynamic placeholders for formatting (e.g., table_handler, image_bbox_guide, etc.).
 
     Parameters
     ----------
     config : LLMConfig
-        Contains system prompt, provider, and model name.
-    table_handler : str
-        Controls how extracted tables are formatted in the structured output.
-        Accepted values are:
-            - "html": Tables are returned as HTML strings.
-            - "markdown": Tables are returned using Markdown table syntax.
-        Defaults to "html".
+        LLM system config containing model, provider, prompt, etc.
     user_question : str, optional
-        User's input prompt.
-    image : Union[PIL.Image.Image, str], optional
-        Image input (PIL image or URL).
-        image_bbox_guide : dict, optional
-        A dictionary mapping image placeholders (e.g., "image_1") to bounding box
-        coordinates in the format [x_min, y_min, x_max, y_max].
-        This can be provided as a guide to help the LLM align visual elements with
-        their location on the document page.
-
-        Example:
-            {
-                "image_1": [72.0, 144.0, 320.5, 288.0],
-                "image_2": [100.0, 400.0, 250.0, 500.0]
-            }
+        User-provided query or instruction.
+    image : PIL.Image.Image or str, optional
+        Optional image input. Can be a PIL image or URL string.
     image_as_base64 : bool, default=True
-        Whether to encode the PIL image as base64.
+        Whether to base64-encode the image.
+    **kwargs : dict
+        Dynamic placeholders to pass to the prompt formatter.
 
     Returns
     -------
@@ -123,45 +107,38 @@ def build_prompt(
     Raises
     ------
     NotImplementedError
-        If image input is provided but not supported by the model.
+        If model doesn't support image input.
     TypeError
-        If `image` is not a valid type.
+        If invalid image type is passed.
     ValueError
-        If `image_as_base64` is False but image is a PIL image.
+        If base64 encoding is disabled but a PIL image is passed.
     """
     provider = config.provider
     model_name = getattr(config, "model_name", None)
     system_prompt = config.prompt
     user_input = user_question or ""
-    table_format = getattr(table_handler, "value", "html")
 
-    if image_bbox_guide is None:
-        image_bbox_guide = {}
-
-    # Text-only messages from prompt template
+    # Build base prompt
     prompt = ChatPromptTemplate.from_messages(
         [
             ("system", system_prompt),
             ("human", "{user_input}"),
         ]
     )
+
+    # Format messages with dynamic placeholders
     messages = prompt.format_messages(
         user_input=user_input,
-        table_format=table_format,
-        image_bbox_guide=image_bbox_guide,
+        **kwargs,
     )
 
     # Handle multimodal message
     if image:
         if not supports_multimodal(provider, model_name):
             raise NotImplementedError(
-                (
-                    f"Image input not supported for provider '{provider}' "
-                    f"with model '{model_name}'"
-                )
+                f"Image input not supported for provider '{provider}' with model"
+                f"'{model_name}'"
             )
-
-        from typing import Dict, Union
 
         content_blocks: List[Union[str, Dict[str, str]]] = [
             {"type": "text", "text": user_input}
@@ -186,7 +163,6 @@ def build_prompt(
         else:
             raise TypeError("Image must be a PIL.Image.Image or a URL string.")
 
-        # Replace the final human message with the multimodal version
         messages[-1] = HumanMessage(content=content_blocks)
 
     logger.debug(f"Built prompt with image={bool(image)}: {messages}")

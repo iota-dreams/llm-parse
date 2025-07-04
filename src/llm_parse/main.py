@@ -14,7 +14,8 @@ if __name__ == "__main__":
     # example_pdf = "data/test/input/pdf/2025q1-alphabet-earnings-slides.pdf"
     example_pdf = "data/test/input/pdf/attention_is_all_you_need.pdf"
     # example_pdf = "data/test/input/pdf/empty.pdf"
-    start_page = 8
+    enable_image_description = True
+    start_page = 3
     end_page = None
     response_model = LLMParse
     table_handler = TableHandler.html
@@ -27,16 +28,25 @@ if __name__ == "__main__":
     return_images = "path"
 
     parse_config = load_config("configs/prompts.yaml").parser
-    config = LLMConfig(
+    parse_config = LLMConfig(
         provider=parse_config.provider,
         model_name=parse_config.model_name,
         temperature=parse_config.get("temperature", 0.7),
         prompt=parse_config.prompt,
     )
+    image_description_config = load_config("configs/prompts.yaml").image_description
+    image_description_config = LLMConfig(
+        provider=image_description_config.provider,
+        model_name=image_description_config.model_name,
+        temperature=image_description_config.get("temperature", 0.7),
+        prompt=image_description_config.prompt,
+    )
 
     parsed_pdf = process_pdf_with_llm(
         file_path=example_pdf,
-        config=parse_config,
+        parser_config=parse_config,
+        enable_image_description=enable_image_description,
+        image_description_config=image_description_config,
         start_page=start_page,
         end_page=end_page,
         response_model=response_model,
