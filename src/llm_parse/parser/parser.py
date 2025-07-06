@@ -149,7 +149,6 @@ def process_pdf_with_llm(
             )
             try:
                 # Fallback defaults
-                # image_bbox_guide = kwargs.get("image_bbox_guide", {})
                 table_format = getattr(table_handler, "value", "html")
 
                 llm_parse = dispatch_llm_request(
@@ -179,6 +178,7 @@ def process_pdf_with_llm(
                     image_bbox_guide=image_bbox_guide,
                 )
 
+                # Extract and inject hyperlinks to the parsed data
                 parsed_page, hyperlink_uris = inject_pdf_hyperlinks(
                     parsed_page, handler.document[page_number - 1]
                 )
