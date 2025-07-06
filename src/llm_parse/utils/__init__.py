@@ -1,5 +1,6 @@
 from .config_utils import filter_config, load_config
 from .file_utils import ensure_output_dir, get_filename, save_model
+from .hyperlinks import inject_pdf_hyperlinks
 from .image_utils import (
     annotate_image_with_bbox,
     crop_images_from_bbox,

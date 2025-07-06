@@ -19,6 +19,7 @@ from llm_parse.utils import (
     ensure_output_dir,
     extract_image_bboxes_from_page_obj,
     get_logger,
+    inject_pdf_hyperlinks,
     save_model,
 )
 
@@ -177,6 +178,11 @@ def process_pdf_with_llm(
                     pdf_page_dimensions=(pdf_page_width, pdf_page_height),
                     image_bbox_guide=image_bbox_guide,
                 )
+
+                parsed_page, hyperlink_uris = inject_pdf_hyperlinks(
+                    parsed_page, handler.document[page_number - 1]
+                )
+                parsed_page.hyperlink_guide = hyperlink_uris
 
                 parsed_page = postprocess_llm_response(
                     result=parsed_page,
