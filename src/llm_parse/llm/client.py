@@ -81,16 +81,6 @@ def call_llm(
             )
             result = structured_llm.invoke(messages)
             logger.debug(f"Structured LLM output: {result}")
-
-            # DEBUG
-            if isinstance(result, dict) and response_model is not None:
-                parsed = result.get("parsed")
-                raw = result.get("raw")
-
-                # Pydantic validation failed originally, but raw function call exists
-                if parsed is None and raw:
-                    print("WASIIII")
-            # DEBUG
             return result
 
         # Fallback: no response model
