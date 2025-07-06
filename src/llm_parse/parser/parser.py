@@ -174,6 +174,8 @@ def process_pdf_with_llm(
                 )
 
                 # Step 2: Annotate and crop image using bounding boxes
+                # We are prompting LLM to give normalized bboxes. So, this can be
+                # set to `True`
                 is_normalized = True
 
                 annotated_image = annotate_image_with_bbox(
