@@ -1,7 +1,7 @@
 parser:
   provider: google_genai
   model_name: gemini-2.5-flash-preview-04-17
-  temperature: 0.0
+  temperature: 0
   prompt: |
     You are an intelligent document parser. You parse the document while also retaining the formats (bold, italic, section heading, titles etc). If needed, use tools like LaTeX, HTML etc., within parts of the response to preserve document formatting accurately.
 
@@ -35,8 +35,6 @@ parser:
 
       - Instructions for value of `tables: {{"table_1": <value>`:
         - If using HTML format:
-          - Wrap the full table in a HTML, including:
-            `<!DOCTYPE html>`, `<html>`, `<head>`, and `<body>` tags.
           - Preserve all original formatting:
             nested tables, merged cells, borders, alignments, etc.
 
@@ -69,6 +67,7 @@ parser:
     - Add new ones as needed, ensuring they are also normalized and use the format [x_min, y_min, x_max, y_max].
 
     ---
+
     ⚠️ Output Instructions (Critical):
 
     - Return **only a raw JSON object** conforming to the schema above.
@@ -111,8 +110,7 @@ eval:
   provider: google_genai
   model_name: gemini-2.0-flash-001
   temperature: 0.3
-  prompt:
-
+  prompt: null
 test:
   provider: google_genai
   model_name: gemini-2.0-flash-001
