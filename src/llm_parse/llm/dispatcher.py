@@ -82,7 +82,7 @@ def dispatch_llm_request(
             return validated
         except Exception:
             logger.warning(
-                "Top-level dict validation failed. Trying 'parsed' fallback if"
+                "Top-level dict validation failed. Trying 'parsed' fallback if "
                 "available."
             )
 

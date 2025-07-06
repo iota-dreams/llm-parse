@@ -3,18 +3,18 @@ from typing import Tuple
 
 import fitz  # PyMuPDF
 
-from ..models import LLMParseResult
+from ..models import LLMParse
 from .logger import get_logger
 
 logger = get_logger(__name__)
 
 
 def inject_pdf_hyperlinks(
-    parsed_page: LLMParseResult,
+    llm_parse: LLMParse,
     page_obj: fitz.Page,
-) -> Tuple[LLMParseResult, list[str]]:
+) -> Tuple[LLMParse, list[str]]:
     """
-    Injects Markdown-style hyperlinks into parsed_page.parse.text_content
+    Injects Markdown-style hyperlinks into llm_parse.text_content
     using URI annotations extracted from the given PyMuPDF page object.
 
     Supported links:
@@ -25,7 +25,7 @@ def inject_pdf_hyperlinks(
     document fragments).
 
     Parameters:
-        parsed_page: LLMParseResult
+        llm_parse: LLMParse
             Parsed page object returned by the LLM, containing parse.text_content.
         page_obj: fitz.Page
             Corresponding page object from PyMuPDF used to extract hyperlink
@@ -44,12 +44,12 @@ def inject_pdf_hyperlinks(
 
     try:
         # Extract the existing text content from the parsed page
-        text_content = parsed_page.parse.text_content or ""
+        text_content = llm_parse.text_content or ""
         if not text_content:
             logger.debug(
                 "No text content in parsed_page. Skipping hyperlink injection."
             )
-            return parsed_page, []
+            return llm_parse, []
 
         # Acceptable schemes for link injection
         allowed_schemes = ("http://", "https://", "mailto:", "tel:")
@@ -71,7 +71,7 @@ def inject_pdf_hyperlinks(
 
         if not links:
             logger.debug("No hyperlinks with supported schemes found.")
-            return parsed_page, []
+            return llm_parse, []
 
         logger.debug(f"Found {len(links)} valid hyperlink(s) on page.")
 
@@ -89,7 +89,7 @@ def inject_pdf_hyperlinks(
                         )
         except Exception:
             logger.exception("Failed to extract text spans from PDF page.")
-            return parsed_page, all_valid_links
+            return llm_parse, all_valid_links
 
         logger.debug(f"Collected {len(spans)} text spans for anchor detection.")
 
@@ -144,10 +144,10 @@ def inject_pdf_hyperlinks(
                 break
 
         # Save updated content back to the model
-        parsed_page.parse.text_content = text_content
+        llm_parse.text_content = text_content
 
-        return parsed_page, all_valid_links
+        return llm_parse, all_valid_links
 
     except Exception:
         logger.exception("Failed to inject hyperlinks into parsed page content.")
-        return parsed_page, all_valid_links
+        return llm_parse, all_valid_links

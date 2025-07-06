@@ -5,6 +5,7 @@ from typing import List, Literal, Optional
 from llm_parse.file_handlers import PDFHandler
 from llm_parse.llm import dispatch_llm_request, vlm_description
 from llm_parse.models import (
+    ImageParseData,
     ImageRepresentation,
     LLMConfig,
     LLMParse,
@@ -148,7 +149,6 @@ def process_pdf_with_llm(
                 doc=handler.document, page_number=page_number, normalize=True
             )
             try:
-                # Fallback defaults
                 table_format = getattr(table_handler, "value", "html")
 
                 llm_parse = dispatch_llm_request(
@@ -159,6 +159,7 @@ def process_pdf_with_llm(
                     table_format=table_format,
                     image_bbox_guide=image_bbox_guide,
                 )
+
                 logger.info(f"✅ Page {page_number} response captured")
                 logger.debug(f"✅ Page {page_number} response: {llm_parse}")
 
@@ -167,6 +168,41 @@ def process_pdf_with_llm(
                         "Expected structured LLMParse response, got raw string."
                     )
 
+                # Step 1: Extract and inject hyperlinks
+                parsed_page, hyperlink_uris = inject_pdf_hyperlinks(
+                    llm_parse, handler.document[page_number - 1]
+                )
+
+                # Step 2: Annotate and crop image using bounding boxes
+                is_normalized = True
+
+                annotated_image = annotate_image_with_bbox(
+                    image=image,
+                    image_bbox=llm_parse.image_bbox,
+                    normalized=is_normalized,
+                )
+
+                cropped_images = crop_images_from_bbox(
+                    image=image,
+                    image_bbox=llm_parse.image_bbox,
+                    normalized=is_normalized,
+                )
+
+                # Step 3: Optionally describe cropped image regions using VLM
+                image_descriptions = None
+                if (
+                    enable_image_description
+                    and cropped_images
+                    and image_description_config
+                ):
+                    prompt = image_description_config.prompt
+                    image_descriptions = vlm_description(
+                        images=cropped_images,
+                        config=image_description_config,
+                        prompt=prompt,
+                    )
+
+                # Step 4: Finalize parsed page using build_llm_parse_result
                 parsed_page = build_llm_parse_result(
                     llm_parse=llm_parse,
                     parser_config=parser_config,
@@ -175,51 +211,21 @@ def process_pdf_with_llm(
                     total_pages=total_pages,
                     image=image,
                     pdf_page_dimensions=(pdf_page_width, pdf_page_height),
-                    image_bbox_guide=image_bbox_guide,
+                    hyperlink_guide=hyperlink_uris,
+                    image_data=ImageParseData(
+                        bbox_guide=image_bbox_guide,
+                        descriptions=image_descriptions,
+                        description_config=image_description_config,
+                    ),
                 )
 
-                # Extract and inject hyperlinks to the parsed data
-                parsed_page, hyperlink_uris = inject_pdf_hyperlinks(
-                    parsed_page, handler.document[page_number - 1]
-                )
-                parsed_page.hyperlink_guide = hyperlink_uris
-
+                # Step 5: Postprocessing
                 parsed_page = postprocess_llm_response(
                     result=parsed_page,
                     denormalize_images=denormalize_images,
                 )
-                parsed_pdf.append(parsed_page)
 
-                is_normalized = not denormalize_images
-
-                annotated_image = annotate_image_with_bbox(
-                    image=image,
-                    image_bbox=llm_parse.image_bbox,
-                    normalized=is_normalized,
-                )
-                cropped_images = crop_images_from_bbox(
-                    image=image,
-                    image_bbox=llm_parse.image_bbox,
-                    normalized=is_normalized,
-                )
-
-                if (
-                    enable_image_description
-                    and cropped_images
-                    and image_description_config
-                ):
-                    prompt = image_description_config.prompt
-
-                    image_descriptions = vlm_description(
-                        images=cropped_images,
-                        config=image_description_config,
-                        prompt=prompt,
-                    )
-
-                    parsed_page.image_description = image_descriptions
-                    parsed_page.image_description_config = image_description_config
-
-                # Append fully populated parsed_page to parsed_pdf
+                # Step 6: Append to result list
                 parsed_pdf.append(parsed_page)
 
                 filename = handler.file_name.replace(".", "_")
@@ -259,7 +265,10 @@ def process_pdf_with_llm(
                             )
                             image_crops.append(image_entry)
 
-                        parsed_page.image_crops = image_crops
+                    if parsed_page.image_data is None:
+                        parsed_page.image_data = ImageParseData()
+
+                    parsed_page.image_data.crops = image_crops
 
                     output_path = output_dir_path / "response.json"
                     save_model(model=parsed_page, output_path=output_path)

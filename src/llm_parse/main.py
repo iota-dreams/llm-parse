@@ -11,11 +11,11 @@ if __name__ == "__main__":
     os.environ["GOOGLE_API_KEY"] = os.getenv("gemini_api_key") or ""
 
     # example_pdf = "data/test/input/pdf/2025q1-alphabet-earnings-release.pdf"
-    # example_pdf = "data/test/input/pdf/2025q1-alphabet-earnings-slides.pdf"
-    example_pdf = "data/test/input/pdf/attention_is_all_you_need.pdf"
+    example_pdf = "data/test/input/pdf/2025q1-alphabet-earnings-slides.pdf"
+    # example_pdf = "data/test/input/pdf/attention_is_all_you_need.pdf"
     # example_pdf = "data/test/input/pdf/empty.pdf"
     enable_image_description = True
-    start_page = 11
+    start_page = 5
     end_page = None
     response_model = LLMParse
     table_handler = TableHandler.html
