@@ -35,24 +35,29 @@ def handle_llm_failure(
     (if required).
     Returns a fallback LLMParseResult with error information populated.
     """
+    # Create a concise, readable error message
     error_message = (
         f"{type(error).__name__}: {str(error)}" if error else "Unknown Error"
     )
 
+    # Log a clear, concise error in INFO/ERROR level
     logger.error(f"❌ Error while processing page {page_number}: {error_message}")
+
+    # Log full traceback for debugging (in DEBUG level)
     logger.debug(traceback.format_exc())
 
+    # Build fallback object with a clean, readable message
     fallback = build_llm_parse_result(
         parser_config=parser_config,
-        # LLM parse failed
-        llm_parse=None,
+        llm_parse=None,  # No structured parse available
         file_name=file_name,
         page_number=page_number,
         total_pages=total_pages,
         image=image,
         pdf_page_dimensions=pdf_page_dimensions,
         image_bbox_guide=image_bbox_guide,
-        error_message=str(error) if error else "Unknown Error",
+        success=False,
+        error_message=error_message,
     )
 
     if write_to_disk:

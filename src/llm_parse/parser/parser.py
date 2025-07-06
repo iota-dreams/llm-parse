@@ -1,4 +1,3 @@
-import os
 import traceback
 from pathlib import Path
 from typing import List, Literal, Optional
@@ -27,8 +26,6 @@ from .error_handler import handle_llm_failure
 from .response_builder import build_llm_parse_result
 
 logger = get_logger(__name__)
-# Set Gemini API Key (ensure this is set)
-os.environ["GOOGLE_API_KEY"] = os.getenv("gemini_api_key") or ""
 
 
 def process_pdf_with_llm(
@@ -180,7 +177,6 @@ def process_pdf_with_llm(
                     pdf_page_dimensions=(pdf_page_width, pdf_page_height),
                     image_bbox_guide=image_bbox_guide,
                 )
-                parsed_page = 6
 
                 parsed_page = postprocess_llm_response(
                     result=parsed_page,

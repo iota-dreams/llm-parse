@@ -5,17 +5,17 @@ from llm_parse.parser import process_pdf_with_llm
 from llm_parse.utils import get_logger, load_config
 
 logger = get_logger("LLM_parser")
-# Set Gemini API Key (ensure this is set)
-os.environ["GOOGLE_API_KEY"] = os.getenv("gemini_api_key") or ""
-
 
 if __name__ == "__main__":
-    # example_pdf = "data/test/input/pdf/2025q1-alphabet-earnings-release.pdf"
+    # Set Gemini API Key (ensure this is set)
+    os.environ["GOOGLE_API_KEY"] = os.getenv("gemini_api_key") or ""
+
+    example_pdf = "data/test/input/pdf/2025q1-alphabet-earnings-release.pdf"
     # example_pdf = "data/test/input/pdf/2025q1-alphabet-earnings-slides.pdf"
-    example_pdf = "data/test/input/pdf/attention_is_all_you_need.pdf"
+    # example_pdf = "data/test/input/pdf/attention_is_all_you_need.pdf"
     # example_pdf = "data/test/input/pdf/empty.pdf"
     enable_image_description = True
-    start_page = 3
+    start_page = 4
     end_page = None
     response_model = LLMParse
     table_handler = TableHandler.html

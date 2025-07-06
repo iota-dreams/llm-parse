@@ -60,7 +60,7 @@ class LLMParse(BaseModel):
     """
     Structured response format for document parsing.
 
-    - `text_content`: Extracted text with placeholders like {{table_1}}, {{image_1}}.
+    - `text_content`: Extracted text with placeholders like {table_1}, {image_1}.
     - `tables`: Mapping of placeholders to table content in HTML or Markdown.
     - `image_bbox`: Mapping of placeholders to image bounding boxes.
     - `parse_confidence`: Confidence score from 0 to 1.
@@ -70,7 +70,7 @@ class LLMParse(BaseModel):
 
     text_content: str = Field(
         ...,
-        description="Main parsed text with placeholders like {{table_1}}, {{image_2}}"
+        description="Main parsed text with placeholders like {table_1}, {image_2}"
         "in place of visual content.",
     )
     image_bbox: Optional[Dict[str, list[float]]] = Field(

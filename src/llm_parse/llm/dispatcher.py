@@ -8,20 +8,11 @@ from llm_parse.llm.client import call_llm
 from llm_parse.models import LLMConfig
 from llm_parse.utils import get_logger
 
+from ..utils import normalize_llm_fields, parse_raw_llm_response
+
 logger = get_logger(__name__)
 
 ResponseModelType = TypeVar("ResponseModelType", bound=BaseModel)
-
-
-def sanitize_llm_response(data: dict) -> dict:
-    """
-    Ensures LLM output dicts don't contain nulls where dictionaries are expected.
-    """
-    for key in ("tables", "image_bbox"):
-        val = data.get(key)
-        if val in (None, "null", ""):
-            data[key] = {}
-    return data
 
 
 def dispatch_llm_request(
@@ -70,6 +61,11 @@ def dispatch_llm_request(
             image=image,
             prompt_context=prompt_context,
         )
+
+        if isinstance(raw_response, str):
+            raw_response_str = raw_response
+            raw_response = parse_raw_llm_response(raw_response_str)
+
     except Exception as e:
         logger.error("Error during LLM invocation", exc_info=True)
         raise RuntimeError(f"LLM invocation failed: {e}") from e
@@ -77,13 +73,20 @@ def dispatch_llm_request(
     logger.debug("\n--- Raw LLM Response ---")
     logger.debug(raw_response)
 
-    # Case 1: Structured output successfully parsed
-    if isinstance(raw_response, BaseModel):
-        logger.info("Structured response returned directly from LLM.")
-        return cast(ResponseModelType, raw_response)
-
-    # Case 2: Handle partial or unstructured response
+    # ✅ Sub-case: Top-level dict is already structured output
+    # (e.g., from parse_raw_llm_response)
     if isinstance(raw_response, dict) and response_model is not None:
+        try:
+            validated = response_model.model_validate(raw_response)
+            logger.info("Successfully validated top-level dict as structured response.")
+            return validated
+        except Exception:
+            logger.warning(
+                "Top-level dict validation failed. Trying 'parsed' fallback if"
+                "available."
+            )
+
+        # Sub-case: LLM returned with 'parsed' and 'raw' keys (function call format)
         parsed = raw_response.get("parsed")
         raw = raw_response.get("raw")
 
@@ -97,8 +100,8 @@ def dispatch_llm_request(
                 # Convert the argument string to a dictionary
                 parsed_dict = json.loads(args_str)
 
-                # Sanitize the dictionary (e.g., handle nulls, fix types, etc.)
-                parsed_dict = sanitize_llm_response(parsed_dict)
+                # Normalize fields like 'null' → {}, etc.
+                parsed_dict = normalize_llm_fields(parsed_dict)
 
                 # Retry validation using the cleaned-up dictionary
                 validated = response_model.model_validate(parsed_dict)
@@ -107,23 +110,24 @@ def dispatch_llm_request(
                 return validated
 
             except Exception as ve:
-                logger.warning(f"Retry after sanitizing parsed LLM output failed: {ve}")
+                logger.warning(
+                    f"Retry after normalizing parsed LLM output failed: {ve}"
+                )
                 raise RuntimeError(f"Recovery failed: {ve}") from ve
-        #  To handle case when include_raw=True is set to True in
-        # llm.with_structured_output function call
+
+        # To handle case when include_raw=True is set in llm.with_structured_output call
         # It returns in this format:
-        #     {
-        #         "parsed": <parsed_output>,
-        #         "raw": <raw_response_from_llm>
-        #     }, we check for both `dict` and `BaseModel`
+        # {
+        #     "parsed": <parsed_output>,
+        #     "raw": <raw_response_from_llm>
+        # }
+        # We check for both `dict` and `BaseModel`
         if isinstance(parsed, (dict, BaseModel)):
             try:
-                # If it's already a model, just return it
                 if isinstance(parsed, BaseModel):
                     logger.info("Parsed response is already a BaseModel.")
                     return cast(ResponseModelType, parsed)
 
-                # If it's a dict, validate it
                 validated = response_model.model_validate(parsed)
                 logger.info(
                     "Successfully validated parsed response using response_model."
@@ -135,15 +139,15 @@ def dispatch_llm_request(
 
         elif isinstance(parsed, str):
             logger.warning(
-                f"Parsed response was string; structured output may have failed."
-                f"Response: {parsed}"
+                "Parsed response was string; structured output may have failed."
+                "Response: {parsed}"
             )
             return parsed
 
-    logger.warning(
-        f"Unstructured or unexpected LLM response format. Response: {raw_response}"
-    )
+    # Fallback: Unable to match response format
+    logger.warning("Unstructured or unexpected LLM response format")
+    logger.debug(f"Raw response: {raw_response}")
     return (
-        "⚠️ LLM response could not be parsed or matched expected format."
-        "Response: {raw_response}"
+        "⚠️ LLM response could not be parsed or matched expected format. "
+        f"Response: {raw_response}"
     )

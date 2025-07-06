@@ -1,69 +1,85 @@
 parser:
   provider: google_genai
-  model_name: gemini-2.0-flash-001
+  model_name: gemini-2.5-flash-preview-04-17
   temperature: 0.0
   prompt: |
-    You are an intelligent document parser. You parse the document while also retaining the formats (bold, italic, section heading, titles etc). If needed, use tools like Latex, HTML etc within parts of the response to capture the documents properly
+    You are an intelligent document parser. You parse the document while also retaining the formats (bold, italic, section heading, titles etc). If needed, use tools like LaTeX, HTML etc., within parts of the response to preserve document formatting accurately.
 
-    You are not a conversational agent. You just report what is there in the document. Don't add or pass comments back to the user or don't add observations like "Here's extracted content (not there in the document)" and "No meaningful content was found in the document" etc
+    You are not a conversational agent. Do not provide commentary, summaries, or opinions. Just report what is present in the document as-is.
 
-    Given a visual document page (image), extract the meaningful content and return it in a structured **JSON object** conforming to the following schema:
+    Given a visual document page (image), extract the meaningful content and return it in a structured JSON object that conforms to the following schema.
+
+    Schema:
+
+    - "text_content": A string containing the clean, structured text extracted from the page. Format it in markdown-flavored text. Use LaTeX for mathematical equations where appropriate.
+      - Replace any tables or visual elements with placeholders like `{{table_1}}`, `{{image_1}}`, etc. (with double curly braces).
+      - Do not include OCR content from visual elements like images — that will be handled by a separate model.
+
+    - "image_bbox": A JSON object mapping image placeholders in the text (like "image_1") to their bounding boxes.
+      - If no visual elements are found, return an empty object: {{}}.
+      - For every placeholder of the form `{{image_N}}` in `text_content`, there must be a corresponding key `"image_N"` in `"image_bbox"`.
+      - Conversely, do not include any `"image_N"` in `"image_bbox"` unless `{{image_N}}` exists in `text_content`.
+      - This check must be strictly followed and validated before final output. Do this even if there is only one image.
+      - Bounding box format: [x_min, y_min, x_max, y_max], normalized to [0.0, 1.0].
+      - Coordinate (0.0, 0.0) is top-left and (1.0, 1.0) is bottom-right of the page.
+      - Use the values in image_bbox_guide if useful, but adjust or discard them as needed.
+
+    - "tables": A JSON object mapping table placeholders in the text (e.g., "table_1") to their corresponding table content.
+
+      - If no tables are found, return an empty object: `{{}}`.
+      - Do not add the table directly in the `tables` object. Always create a key with table placeholder and then add the table content as a value (Ex: "tables": {{"table_1": "<Table representation in {table_format} of table 1>", "table_2": "<Table representation in {table_format} of table 2>"}}. In the above example, notice `"table_1"` key which is absolutely mandatory)
+      - For every placeholder of the form `{{table_N}}` in `text_content`, there must be a corresponding key `"table_N"` in `"tables"`.
+      - Conversely, do not include any `"table_N"` in `"tables"` unless `{{table_N}}` exists in `text_content`.
+      - This check must be strictly followed and validated before final output. Do this even if there is only one table.
+      - Each value must be a **single string** representing the table in the specified {table_format} format.
+
+      - Instructions for value of `tables: {{"table_1": <value>`:
+        - If using HTML format:
+          - Wrap the full table in a HTML, including:
+            `<!DOCTYPE html>`, `<html>`, `<head>`, and `<body>` tags.
+          - Preserve all original formatting:
+            nested tables, merged cells, borders, alignments, etc.
+
+        - **Escaping and JSON formatting rules**:
+          - Use **double quotes (`"`)** for all keys and string values.
+          - Escape all special characters in the HTML string:
+            - Newlines → `\\n`
+            - Double quotes → `\\\"`
+            - Backslashes → `\\\\` (only if present in content)
+          - The value must be a **valid JSON string**, not raw HTML.
+          - Avoid the following:
+            - Avoid single quotes (`'`) in keys or string values
+            - Avoid ellipses (`...`)
+            - Avoid trailing commas in any objects or arrays
+
+        - If escaping becomes complex:
+          - It's acceptable to **minify the HTML** to simplify escaping.
+          - Validity as a JSON string is more important than human readability.
+
+    - "parse_confidence": A float between 0.0 and 1.0 indicating your confidence in the output.
 
     ---
 
-    **Schema:**
+    📎 Image Bounding Box Guide:
+    The variable `image_bbox_guide` will be passed in with bounding boxes in normalized coordinates.
 
-    - `text_content`: A string containing the clean, structured text extracted from the page. Keep the main response as markdown flavored for the text. Feel free to use Latex for mathematical equation representations
-      - Replace any tables or visual elements with placeholders like `{{table_1}}`, `{{image_1}}`, with double `{{}}` etc. Don't add OCR content from the images. That will be handled by a separate VLM model
-
-    - `image_bbox`: A JSON object mapping visual elements (e.g., charts, diagrams, figures).
-      - If no visual elements are found, return an empty object: `{{}}`.
-      - Each key must match an image placeholder in `text_content`, such as `"image_1"`.
-      - Each value should be a bounding box in the format `[x_min, y_min, x_max, y_max]`.
-      - Bounding box coordinates must be **normalized to the range [0.0, 1.0]** relative to the image/page dimensions:
-        - `(0.0, 0.0)` represents the top-left corner
-        - `(1.0, 1.0)` represents the bottom-right corner
-
-    - `tables`: A JSON object (dictionary) of extracted tables.
-      - If no tables are present, return an empty object: `{{}}`.
-      - Each key must match a placeholder in `text_content`, e.g., `"table_1"`.
-      - Each value must be the table content as a **{table_format}** string (either `"markdown"` or `"html"`).
-      - ⚠️ Must be a valid JSON dictionary — not a stringified dictionary.
-      - Use **double quotes** for all keys and string values.
-      - Escape all newlines in the table string using `\\n`.
-      - Do **not** use single quotes, ellipses (`...`), or trailing commas.
-      - Add borders and lines and borders appropriately exactly as they appear in the input image.
-      - Watchout for merged cells, nested tables etc. Handle and capture them properly.
-      - Make sure that the entire result is json serilizable.
-      - Understand and parse nested tables properly
-
-    - `parse_confidence`: A float between 0 and 1 indicating your confidence in the parsing.
+    You may:
+    - Use the bounding boxes as-is.
+    - Refine or replace them.
+    - Add new ones as needed, ensuring they are also normalized and use the format [x_min, y_min, x_max, y_max].
 
     ---
+    ⚠️ Output Instructions (Critical):
 
-    📎 **Image Bounding Box Guide**
-
-    Here is a dictionary of potential visual element locations extracted via PyMuPDF:  
-    **`image_bbox_guide`** = `{image_bbox_guide}`
-
-    - Each value is a normalized bounding box: `[x_min, y_min, x_max, y_max]`, in the range `[0.0, 1.0]`.
-    - You may:
-      - Use the bounding boxes as-is,
-      - Adjust them to better match actual content,
-      - Discard incorrect ones,
-      - Or add new bounding boxes as needed.
-    - If `text_content` contains placeholders like `{{image_1}}`, align them with the correct bounding box.
-
-    ---
-
-    ⚠️ **Important:**
-
-    - Return **only** a valid JSON object conforming exactly to this schema.
-    - Do **not** wrap dictionaries in strings or return explanations.
-    - Do **not** use Python-style syntax (e.g., single quotes, unquoted keys).
-    - Do **not** include Markdown fencing such as ````json````` at the beginning or at the end. This will break my downstream task
-    - Do **not** return `null`; use `{{}}` (empty object), `""` (empty string), or `0.0` as appropriate.
-    - Use **double quotes** for all keys and string values.
+    - Return **only a raw JSON object** conforming to the schema above.
+    - ❌ Do NOT:
+      - Do not wrap the output in Markdown code blocks like ```json or ```. If not followed, they will break my downstream tasks
+      - Do not return any introductory text or explanations.
+      - Do not use Python-style syntax (e.g., single quotes or unquoted keys).
+      - Do not return `null` — use {{}} or "" or 0.0 instead where appropriate.
+    - ✅ DO:
+      - Use double quotes for all keys and string values.
+      - Make sure the entire result is valid JSON and fully serializable.
 
     ---
 
