@@ -14,39 +14,44 @@ def inject_pdf_hyperlinks(
     page_obj: fitz.Page,
 ) -> Tuple[LLMParse, List[str]]:
     """
-    Injects Markdown-style hyperlinks into llm_parse.text_content using URI annotations
-    extracted from the given PyMuPDF page object.
+    Injects Markdown-style hyperlinks into llm_parse.text_content
+    using URI annotations extracted from the given PyMuPDF page object.
 
     Supported links:
     - http:// and https://
     - mailto: and tel:
 
-    All other URI schemes are ignored (e.g., file://, relative paths, fragments).
+    All other URI schemes are ignored (e.g., file://, relative paths,
+    document fragments).
 
     Parameters
     ----------
     llm_parse : LLMParse
-        Parsed result from the LLM, containing text_content with potential
-        anchor matches.
+        Parsed page object returned by the LLM, containing parse.text_content.
     page_obj : fitz.Page
-        PyMuPDF page object from which to extract hyperlink annotations.
+        Corresponding page object from PyMuPDF used to extract hyperlink annotations.
 
     Returns
     -------
     Tuple[LLMParse, List[str]]
-        - Updated llm_parse with Markdown-style hyperlinks injected into text_content.
-        - List of all valid hyperlink URIs extracted from the page.
+        - Updated llm_parse with Markdown-style hyperlinks injected.
+        - List of all valid hyperlinks found on the page (regardless of injection).
 
     Notes
     -----
-    - This function assumes that `llm_parse.text_content` retains anchor phrases
-      visible in the PDF near the hyperlink bounding boxes.
-    - If the LLM omits or rephrases those anchors, injection may silently fail.
-    - Hyperlinks that span multiple lines (e.g., in tables) are supported if:
-        1. The hyperlink annotation's bounding box includes all lines.
-        2. The combined anchor text from those spans matches the LLM output.
-    - This function avoids full-page span extraction and only examines spans
-      within or near the bounding box of each hyperlink annotation.
+    - Injection relies on spatial alignment (IoU overlap) between hyperlink bounding
+      boxes and visible text spans on the PDF page.
+    - Anchor text and hyperlink URL are treated independently; there is no assumption
+      that the anchor resembles the URL.
+    - If multiple hyperlinks share the same anchor text (e.g., "Click here"), only
+      the **first occurrence** of that anchor in `text_content` will be replaced.
+    - Once an anchor is injected, it will not be used again for any subsequent links,
+      even if it appears multiple times.
+    - Links without matching anchor spans (exact or fuzzy) in `text_content` are
+      skipped.
+    - This function assumes that `llm_parse.text_content` closely mirrors the layout
+      of the original PDF, and may fail to inject links correctly if the structure
+      is significantly altered by the LLM.
     """
 
     injected_once = set()  # Track (uri, anchor) pairs already injected
