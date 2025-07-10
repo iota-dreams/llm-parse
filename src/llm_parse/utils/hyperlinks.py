@@ -12,17 +12,16 @@ logger = get_logger(__name__)
 def inject_pdf_hyperlinks(
     llm_parse: LLMParse,
     page_obj: fitz.Page,
+    relative_hyperlink_extract: bool = True,
 ) -> Tuple[LLMParse, List[str]]:
     """
     Injects Markdown-style hyperlinks into llm_parse.text_content
     using URI annotations extracted from the given PyMuPDF page object.
 
-    Supported links:
-    - http:// and https://
-    - mailto: and tel:
-
-    All other URI schemes are ignored (e.g., file://, relative paths,
-    document fragments).
+    Supported link types:
+    - External: http://, https://
+    - Communication: mailto:, tel:
+    - (Optional) Internal and relative: /help, #top, #cite.reference
 
     Parameters
     ----------
@@ -30,72 +29,113 @@ def inject_pdf_hyperlinks(
         Parsed page object returned by the LLM, containing parse.text_content.
     page_obj : fitz.Page
         Corresponding page object from PyMuPDF used to extract hyperlink annotations.
+    relative_hyperlink_extract : bool, optional
+        Whether to include relative and fragment links (e.g., `/section`, `#ref`).
+        Defaults to True.
 
     Returns
     -------
     Tuple[LLMParse, List[str]]
         - Updated llm_parse with Markdown-style hyperlinks injected.
-        - List of all valid hyperlinks found on the page (regardless of injection).
+        - List of all valid hyperlinks found on the page (regardless of injection
+        success).
 
     Notes
     -----
-    - Injection relies on spatial alignment (IoU overlap) between hyperlink bounding
-      boxes and visible text spans on the PDF page.
-    - Anchor text and hyperlink URL are treated independently; there is no assumption
-      that the anchor resembles the URL.
-    - If multiple hyperlinks share the same anchor text (e.g., "Click here"), only
-      the **first occurrence** of that anchor in `text_content` will be replaced.
-    - Once an anchor is injected, it will not be used again for any subsequent links,
-      even if it appears multiple times.
-    - Links without matching anchor spans (exact or fuzzy) in `text_content` are
-      skipped.
-    - This function assumes that `llm_parse.text_content` closely mirrors the layout
-      of the original PDF, and may fail to inject links correctly if the structure
-      is significantly altered by the LLM.
+    - This function assumes llm_parse.text_content is structurally aligned with the PDF
+    layout.
+    - Hyperlink anchor text is extracted using spatial clipping from the page (based on
+    the hyperlink's bounding box).
+    - Multi-line or wrapped hyperlinks are reconstructed from multiple spans and merged
+    into a single anchor string.
+    - Anchor and URL are treated independently; there's no requirement for the anchor
+    to resemble the link.
+    - Each URI-anchor pair is injected **once** using either an exact match or a fuzzy
+    match (fallback).
+    - Repeated anchors (e.g., multiple "Click here" texts) are injected only once for
+    the first match found.
+    - If the same anchor appears more than once in `text_content`, only the first
+    occurrence is replaced.
+    - Anchors not found in the content (even after fuzzy matching) are skipped silently.
+    - Fuzzy matching (similarity > 0.85) is attempted **only if exact match fails**.
+    - Hyperlinks with unsupported or unsafe schemes (e.g., `file://`, `javascript:`)
+    are skipped.
+    - Hyperlinks without bounding boxes (malformed annotations) are also skipped.
+    - If `llm_parse.text_content` is significantly altered or hallucinated by the LLM,
+    injection may partially fail.
     """
+    # Track (uri, anchor) pairs already injected to avoid duplicates
+    injected_once = set()
 
-    injected_once = set()  # Track (uri, anchor) pairs already injected
-    all_valid_links = []  # List of all valid URIs found
+    # Track all valid URIs found on the page
+    all_valid_links = []
 
     try:
         text_content = llm_parse.text_content or ""
         if not text_content:
             logger.debug(
-                "No text content available in llm_parse. Skipping hyperlink injection."
+                "🔍 No text_content found in llm_parse. Skipping hyperlink injection."
             )
             return llm_parse, []
 
-        allowed_schemes = ("http://", "https://", "mailto:", "tel:")
-
-        # Step 1: Collect valid hyperlinks with bounding boxes
         links = []
         for link in page_obj.get_links():  # type: ignore[attr-defined]
             uri = link.get("uri")
-            if uri and any(
-                uri.lower().startswith(scheme) for scheme in allowed_schemes
-            ):
-                try:
-                    rect = fitz.Rect(link["from"])
-                    links.append({"uri": uri, "rect": rect})
-                    all_valid_links.append(uri)
-                except Exception:
-                    logger.warning(f"Skipping malformed link with invalid bbox: {link}")
+            named_dest = link.get("nameddest")
+
+            resolved_uri = None
+
+            # Case 1: External URI
+            if uri:
+                uri_lower = uri.lower()
+                if uri_lower.startswith(("file://", "data:", "javascript:")):
+                    logger.debug(f"⛔ Skipping unsupported scheme: {uri}")
                     continue
 
+                if not relative_hyperlink_extract and not uri_lower.startswith(
+                    ("http://", "https://", "mailto:", "tel:")
+                ):
+                    logger.debug(f"⚠️ Skipping relative URI due to flag: {uri}")
+                    continue
+
+                resolved_uri = uri
+
+            # Case 2: Internal target like citation anchor
+            elif named_dest and relative_hyperlink_extract:
+                resolved_uri = f"#{named_dest.strip()}"
+
+            # Skip if neither valid URI nor internal anchor
+            if not resolved_uri:
+                continue
+
+            # Bounding box check
+            try:
+                rect = fitz.Rect(link["from"])
+                links.append({"uri": resolved_uri, "rect": rect})
+                all_valid_links.append(resolved_uri)
+            except Exception:
+                logger.warning(
+                    f"⚠️ Skipping malformed link with invalid bounding box: {link}"
+                )
+                continue
+
         if not links:
-            logger.debug("No valid hyperlinks found on page.")
+            logger.debug("🔍 No valid hyperlinks found with allowed schemes.")
             return llm_parse, []
 
-        logger.debug(f"Found {len(links)} hyperlink(s) for injection.")
+        logger.debug(f"🔗 Found {len(links)} hyperlink(s) on page.")
 
-        # Step 2: For each hyperlink, extract clipped text and inject if anchor found
+        # ----------------------------------------
+        # Step 2: Inject each hyperlink into the text content
+        # ----------------------------------------
         for link in links:
             uri = link["uri"]
             rect = link["rect"]
 
             try:
-                # Extract only spans within the hyperlink rectangle
+                # Extract spans only within the hyperlink's bounding box
                 text_blocks = page_obj.get_text("dict", clip=rect)  # type: ignore[attr-defined]
+
                 spans = []
                 for block in text_blocks.get("blocks", []):
                     for line in block.get("lines", []):
@@ -108,17 +148,21 @@ def inject_pdf_hyperlinks(
                             )
 
                 if not spans:
-                    logger.debug(f"No spans found near hyperlink: {uri}")
+                    logger.debug(
+                        f"⚠️ No visible text found within hyperlink bbox for URI: {uri}"
+                    )
                     continue
 
-                # Combine all span texts to reconstruct full anchor (handles multi-line)
+                # Merge all span texts to reconstruct full anchor text
                 anchor = " ".join(span["text"] for span in spans).strip()
                 if not anchor or (uri, anchor) in injected_once:
                     continue
 
                 markdown_link = f"[{anchor}]({uri})"
 
-                # Exact match injection
+                # ----------------------------------------
+                # Step 2a: Exact match injection
+                # ----------------------------------------
                 idx = text_content.find(anchor)
                 if idx != -1:
                     text_content = (
@@ -130,7 +174,9 @@ def inject_pdf_hyperlinks(
                     logger.debug(f"✅ Injected hyperlink: '{anchor}' → {uri}")
                     continue
 
-                # Fallback: fuzzy match
+                # ----------------------------------------
+                # Step 2b: Fuzzy match injection (fallback)
+                # ----------------------------------------
                 for word in text_content.split():
                     if (uri, word) in injected_once:
                         continue
@@ -144,14 +190,16 @@ def inject_pdf_hyperlinks(
                         break
 
             except Exception:
-                logger.exception(f"Error while injecting hyperlink: {uri}")
+                logger.exception(f"💥 Failed to inject hyperlink for URI: {uri}")
                 continue
 
-        # Save updated text back to llm_parse
+        # ----------------------------------------
+        # Step 3: Update llm_parse with modified content
+        # ----------------------------------------
         llm_parse.text_content = text_content
 
         return llm_parse, all_valid_links
 
     except Exception:
-        logger.exception("Unexpected failure during hyperlink injection.")
+        logger.exception("💥 Unexpected failure during hyperlink injection.")
         return llm_parse, all_valid_links

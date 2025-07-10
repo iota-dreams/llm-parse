@@ -2,6 +2,7 @@ parser:
   provider: google_genai
   model_name: gemini-2.5-flash-preview-04-17
   temperature: 0
+  safety_settings:
   prompt: |
     You are an intelligent document parser. You parse the document while also retaining the formats (bold, italic, section heading, titles etc). If needed, use tools like LaTeX, HTML etc., within parts of the response to preserve document formatting accurately.
 
@@ -88,6 +89,7 @@ image_description:
   provider: google_genai
   model_name: gemini-2.0-flash-001
   temperature: 0.3
+  safety_settings:
   prompt: |
     You are a vision-language model. Describe the image content clearly and accurately.
     Focus on visual elements, layout, diagrams, text, and structure. Avoid speculation.
@@ -111,10 +113,13 @@ eval:
   model_name: gemini-2.0-flash-001
   temperature: 0.3
   prompt: null
+  safety_settings:
+
 test:
   provider: google_genai
   model_name: gemini-2.0-flash-001
   temperature: 0.3
+  safety_settings:
   prompt: |
     You are a helpful assistant. Provide your answer and a confidence score between 0 and 1.
 

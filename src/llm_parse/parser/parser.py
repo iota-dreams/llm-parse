@@ -170,7 +170,9 @@ def process_pdf_with_llm(
 
                 # Step 1: Extract and inject hyperlinks
                 parsed_page, hyperlink_uris = inject_pdf_hyperlinks(
-                    llm_parse, handler.document[page_number - 1]
+                    llm_parse=llm_parse,
+                    page_obj=handler.document[page_number - 1],
+                    relative_hyperlink_extract=True,
                 )
 
                 # Step 2: Annotate and crop image using bounding boxes

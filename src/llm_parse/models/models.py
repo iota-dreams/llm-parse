@@ -1,16 +1,11 @@
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Annotated, Dict, List, Optional, Tuple, Union
+from typing import Annotated, Any, Dict, List, Optional, Tuple, Union
 
 from pydantic import BaseModel, Field, field_validator
 
 from .validators import parse_loose_dict
-
-
-class SafetySetting(BaseModel):
-    category: str
-    threshold: str
 
 
 class TableHandler(str, Enum):
@@ -44,7 +39,7 @@ class LLMConfig(BaseModel):
     prompt: str  # Base system or task prompt
     image_path: Optional[Union[str, Path]] = None
     table_type: Optional[str] = "html"
-    safety_settings: Optional[List[SafetySetting]] = None
+    safety_settings: Optional[List[Dict[str, Any]]] = None
 
 
 class ImageDescription(BaseModel):

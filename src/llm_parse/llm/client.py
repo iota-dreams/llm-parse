@@ -25,6 +25,8 @@ def call_llm(
     """
     Calls an LLM using the provided config and user input, with optional image and
     structured response model. Accepts a flexible prompt_context for formatting.
+    Attempts to include safety_settings, but gracefully ignores them if they are invalid
+    or rejected by the provider.
 
     Parameters
     ----------
@@ -56,6 +58,19 @@ def call_llm(
     if prompt_context is None:
         prompt_context = {}
 
+    model_kwargs = {}
+    raw_safety_settings = getattr(config, "safety_settings", None)
+
+    if isinstance(raw_safety_settings, list):
+        if all(isinstance(x, dict) for x in raw_safety_settings):
+            model_kwargs["safety_settings"] = raw_safety_settings
+        elif raw_safety_settings:  # non-empty but contains bad elements
+            logger.warning(
+                "Ignoring malformed safety_settings (must be list of dicts)."
+            )
+    elif raw_safety_settings is not None:
+        logger.warning("Ignoring safety_settings: must be a list.")
+
     try:
         # Initialize LLM backend
         llm: BaseChatModel = init_chat_model(
@@ -63,6 +78,7 @@ def call_llm(
             model_provider=config.provider,
             temperature=config.temperature or 0.7,
             timeout=getattr(config, "timeout", None),
+            model_kwargs=model_kwargs,
         )
 
         # Compose prompt with placeholders
