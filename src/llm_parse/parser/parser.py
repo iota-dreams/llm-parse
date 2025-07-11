@@ -341,15 +341,14 @@ def process_pdf_with_llm(
         )
         logger.info("Returning final processed document parse results.")
 
-        output_pdf_path = Path(output_dir or ".") / filename / "parsed_output.json"
-
-        # Ensure the parent directory exists
-        output_dir_path = ensure_output_dir(output_pdf_path.parent)
-
-        if output_dir_path is not None:
-            save_model(processed_output, output_pdf_path)
-        else:
-            logger.warning("❌ Skipping save: Unable to ensure output directory.")
+        if write_to_disk:
+            output_pdf_path = Path(output_dir or ".") / filename / "parsed_output.json"
+            # Ensure the parent directory exists
+            output_dir_path = ensure_output_dir(output_pdf_path.parent)
+            if output_dir_path is not None:
+                save_model(processed_output, output_pdf_path)
+            else:
+                logger.warning("❌ Skipping save: Unable to ensure output directory.")
         return processed_output
     else:
         logger.info("Returning raw parsed results without post-processing.")
