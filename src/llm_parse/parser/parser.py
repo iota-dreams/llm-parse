@@ -1,6 +1,6 @@
 import traceback
 from pathlib import Path
-from typing import List, Literal, Optional
+from typing import List, Literal, Optional, Union
 
 from llm_parse.file_handlers import PDFHandler
 from llm_parse.llm import dispatch_llm_request, vlm_description
@@ -12,7 +12,10 @@ from llm_parse.models import (
     LLMParseResult,
     TableHandler,
 )
-from llm_parse.post_processing import postprocess_llm_response
+from llm_parse.post_processing import (
+    postprocess_document_parse_results,
+    postprocess_page_parse_result,
+)
 from llm_parse.utils import (
     annotate_image_with_bbox,
     crop_images_from_bbox,
@@ -45,7 +48,9 @@ def process_pdf_with_llm(
     write_to_disk: Optional[bool] = False,
     output_dir: Optional[str] = "",
     return_images: Literal["base64", "path", "none"] = "base64",
-) -> List[LLMParseResult]:
+    apply_document_postprocessing: bool = True,
+    **post_process_kwargs,
+) -> Union[List[LLMParseResult], dict]:
     """
     Process a PDF document by sending each page as an image to an LLM dispatcher.
 
@@ -73,9 +78,9 @@ def process_pdf_with_llm(
         This is useful for tasks that require semantic understanding of visual
         elements (e.g., document summarization, accessibility, indexing).
 
-    parser_config : LLMConfig
-        Configuration for the LLM invocation (e.g., model name, temperature)
-        for VLM description
+    image_description_config : Optional[LLMConfig]
+        Configuration for the visual-language model used in image description.
+        Only used if `enable_image_description` is True.
 
     start_page (int):
         1-based index of first page to process.
@@ -120,11 +125,22 @@ def process_pdf_with_llm(
         If 'path' is chosen but `write_to_disk` is False, a warning is logged and
         images will not be included in the response.
 
+    apply_document_postprocessing : bool, optional
+        Whether to apply post-processing to the raw LLM parse results before returning.
+        If True (default), the results are transformed into a RAG-friendly response
+        format. If False, the raw parsed results are returned as-is.
+
+    post_process_kwargs : dict, optional
+        Additional keyword arguments passed to the post-processing function.
+        Useful for controlling post-processing behavior like preference for file paths
+        or other future options. If no additional options are needed, this can be
+        omitted.
+
     Returns
     -------
-    List[LLMParseResult]
-        A list of structured parsing results, one per page, each containing extracted
-        content, metadata, and optional image crops depending on configuration.
+    Union[List[LLMParseResult], dict]
+        - Raw page-level parse results (if post_process=False)
+        - Final RAG-friendly structure (if post_process=True)
 
     Raises
     ------
@@ -223,8 +239,8 @@ def process_pdf_with_llm(
                     ),
                 )
 
-                # Step 5: Postprocessing
-                parsed_page = postprocess_llm_response(
+                # Step 5: Page-level postprocessing (e.g., denormalization)
+                parsed_page = postprocess_page_parse_result(
                     result=parsed_page,
                     denormalize_images=denormalize_images,
                 )
@@ -242,7 +258,8 @@ def process_pdf_with_llm(
                             f"⚠️ Skipping disk write: could not ensure output directory"
                             f"for page {page_number}. No output directory available"
                         )
-                        return []
+                        # Continue processing, just skip disk writes
+                        continue
 
                     if return_images in ("base64", "path"):
                         image_crops = []
@@ -314,4 +331,26 @@ def process_pdf_with_llm(
     finally:
         handler.close()
         logger.info("PDF processing complete.")
-    return parsed_pdf
+    if apply_document_postprocessing:
+        logger.info("Applying document-level post-processing to all parsed pages...")
+        post_process_kwargs.setdefault("start_page", start_page)
+        post_process_kwargs.setdefault("end_page", end_page or total_pages)
+
+        processed_output = postprocess_document_parse_results(
+            parsed_pdf, **post_process_kwargs
+        )
+        logger.info("Returning final processed document parse results.")
+
+        output_pdf_path = Path(output_dir or ".") / filename / "parsed_output.json"
+
+        # Ensure the parent directory exists
+        output_dir_path = ensure_output_dir(output_pdf_path.parent)
+
+        if output_dir_path is not None:
+            save_model(processed_output, output_pdf_path)
+        else:
+            logger.warning("❌ Skipping save: Unable to ensure output directory.")
+        return processed_output
+    else:
+        logger.info("Returning raw parsed results without post-processing.")
+        return parsed_pdf

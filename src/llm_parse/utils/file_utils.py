@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from typing import Union
+from typing import List, Union
 from urllib.parse import urlparse
 
 from pydantic import BaseModel
@@ -29,42 +29,75 @@ def ensure_output_dir(output_dir: Union[str, Path, None]) -> Union[Path, None]:
     return path
 
 
+def to_serializable(obj):
+    """Recursively convert Pydantic models and nested structures into JSON-serializable
+    dicts."""
+    if isinstance(obj, BaseModel):
+        return obj.model_dump(mode="json")
+    elif isinstance(obj, dict):
+        return {k: to_serializable(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [to_serializable(item) for item in obj]
+    else:
+        return obj
+
+
 def save_model(
-    model: Union[BaseModel, str],
+    model: Union[BaseModel, List[BaseModel], dict, str],
     output_path: Union[str, Path],
     indent: int = 2,
     encoding: str = "utf-8",
     mode: str = "json",
 ):
     """
-    Save a Pydantic model or raw string to a file.
+    Save a Pydantic model, list of models, raw string, or dict to a file.
 
-    Parameters:
-        model (BaseModel | str): The object to save.
-        output_path (str | Path): Destination path.
-        indent (int): Indentation for JSON (ignored for str).
-        encoding (str): File encoding.
-        mode (str): 'json' for structured output, 'text' for plain text.
+    Parameters
+    ----------
+    model : BaseModel | List[BaseModel] | dict | str
+        The object to save.
+
+    output_path : str | Path
+        Destination path for saving.
+
+    indent : int, optional
+        Indentation for JSON output (ignored for plain text).
+
+    encoding : str, optional
+        File encoding to use. Default is 'utf-8'.
+
+    mode : str, optional
+        - 'json' for structured output (default)
+        - 'text' for plain string output
     """
     output_path = Path(output_path)
 
-    if isinstance(model, BaseModel):
-        if mode == "json":
+    if mode == "json":
+        if isinstance(model, BaseModel):
             content = model.model_dump(mode="json")
+        elif isinstance(model, list) and all(isinstance(m, BaseModel) for m in model):
+            content = [m.model_dump(mode="json") for m in model]
+        elif isinstance(model, dict):
+            content = to_serializable(model)
+        else:
+            raise TypeError(
+                f"Expected BaseModel, list of BaseModel, or dict in JSON mode, got "
+                f"{type(model)}"
+            )
+
+        with output_path.open("w", encoding=encoding) as f:
+            json.dump(content, f, indent=indent, ensure_ascii=False)
+
+    elif mode == "text":
+        if isinstance(model, str):
             with output_path.open("w", encoding=encoding) as f:
-                json.dump(content, f, indent=indent, ensure_ascii=False)
-        elif mode == "text":
+                f.write(model)
+        else:
             with output_path.open("w", encoding=encoding) as f:
                 f.write(str(model))
-        else:
-            raise ValueError(f"Unsupported mode '{mode}'. Use 'json' or 'text'.")
-
-    elif isinstance(model, str):
-        with output_path.open("w", encoding=encoding) as f:
-            f.write(model)
 
     else:
-        raise TypeError(f"Expected BaseModel or str, got {type(model)}")
+        raise ValueError(f"Unsupported mode '{mode}'. Use 'json' or 'text'.")
 
 
 def load_model(model_class: type[BaseModel], path: Union[str, Path]) -> BaseModel:
