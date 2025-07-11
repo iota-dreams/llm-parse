@@ -155,7 +155,7 @@ def postprocess_document_parse_results(
     it more suitable for downstream RAG applications.
     """
     final_text = []
-    images: Dict[str, str] = {}
+    images: Dict[str, Dict[str, str]] = {}
     image_descriptions: Dict[str, str] = {}
     skipped_pages: List[int] = []
     errors: Dict[int, str] = {}
@@ -187,46 +187,52 @@ def postprocess_document_parse_results(
                     placeholder = f"{{{key}}}"  # Matches {table_1}
                     content = content.replace(placeholder, table)
 
-            # Inline image markdown with filenames or base64
+            # Inline image markdown with filenames or fallback keys
             if result.image_data and result.image_data.crops:
                 for image in result.image_data.crops:
                     key = image.key
 
-                    # Use path if available and preferred
+                    # Determine the image reference key to use in markdown and
+                    # dictionary
                     if prefer_file_path and image.path:
-                        image_md = f"![{key}]({image.path})"
-                        images[key] = str(image.path)
-
-                    elif image.base64:
-                        image_md = (
-                            f"![{key}]("
-                            f"data:image/{image.format};base64,"
-                            f"{image.base64[:30]}...)"
-                        )
-                        images[key] = image.base64
-
+                        ref_key = str(image.path)
+                        image_md = f"![{key}]({ref_key})"
                     else:
-                        fallback_key = (
-                            f"{result.file_name}_{result.page_number:03d}_{key}"
+                        # Fallback key construction if no path available
+                        ref_key = (
+                            f"{result.file_name}_page_{result.page_number:03d}_"
+                            f"{key}"
                         )
-                        image_md = f"![{key}]({fallback_key})"
-                        images[key] = fallback_key
+                        image_md = f"![{key}]({ref_key})"
 
-                    # Optional description
-                    image_description = ""
+                    # Optional description for the image
+                    description = ""
                     if (
                         result.image_data.descriptions
                         and key in result.image_data.descriptions
                     ):
-                        desc = result.image_data.descriptions[key].description
-                        if desc:
-                            image_description = f"  \n**Image description:** {desc}"
-                            image_descriptions[key] = desc
+                        desc_obj = result.image_data.descriptions[key]
+                        if desc_obj and getattr(desc_obj, "description", None):
+                            description = desc_obj.description
 
-                    # ✅ Replace single-braced placeholders like {image_1}
-                    content = content.replace(
-                        f"{{{key}}}", f"{image_md}{image_description}"
+                    # Replace placeholder in text_content with markdown + description
+                    image_description_md = (
+                        f"  \n**Image description:** {description}"
+                        if description
+                        else ""
                     )
+                    content = content.replace(
+                        f"{{{key}}}", f"{image_md}{image_description_md}"
+                    )
+
+                    # Store base64 string or empty string if missing
+                    base64_str = image.base64 or ""
+
+                    # Store image info keyed by the reference key (path or fallback)
+                    images[ref_key] = {
+                        "base64": base64_str,
+                        "description": description,
+                    }
 
             final_text.append(content)
 
