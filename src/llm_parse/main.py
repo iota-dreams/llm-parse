@@ -1,7 +1,7 @@
 import os
 
 from llm_parse.models import LLMConfig, LLMParse, TableHandler
-from llm_parse.parser import process_pdf_with_llm
+from llm_parse.parser import process_pdf
 from llm_parse.utils import get_logger, load_config
 
 logger = get_logger("LLM_parser")
@@ -44,7 +44,7 @@ if __name__ == "__main__":
 
     apply_document_postprocessing = True
 
-    parsed_pdf = process_pdf_with_llm(
+    parsed_pdf = process_pdf(
         file_path=example_pdf,
         parser_config=parse_config,
         enable_image_description=enable_image_description,

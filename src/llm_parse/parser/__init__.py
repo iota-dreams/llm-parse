@@ -1,1 +1,1 @@
-from .parser import process_pdf_with_llm
+from .parser import process_pdf

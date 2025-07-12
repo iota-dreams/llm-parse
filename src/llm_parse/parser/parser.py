@@ -33,7 +33,7 @@ from .response_builder import build_llm_parse_result
 logger = get_logger(__name__)
 
 
-def process_pdf_with_llm(
+def process_pdf(
     file_path: str,
     parser_config: LLMConfig,
     enable_image_description: bool = False,
