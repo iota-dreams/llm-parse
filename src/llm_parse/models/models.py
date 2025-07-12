@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field, field_validator
 from .validators import parse_loose_dict
 
 
+# models/response.py
 class TableHandler(str, Enum):
     markdown = "markdown"
     html = "html"
@@ -229,4 +230,63 @@ class LLMParseResult(BaseModel):
     timestamp: datetime = Field(
         default_factory=datetime.utcnow,
         description="UTC timestamp when the parsing result was generated.",
+    )
+
+
+class ImageMetadata(BaseModel):
+    base64: str = Field(
+        ...,
+        description="Base64-encoded string of the image content. Empty if not "
+        "available.",
+    )
+    description: str = Field(
+        ...,
+        description="Optional human-readable description of the image "
+        "(e.g., from a VLM).",
+    )
+
+
+class LLMParseDocumentResponse(BaseModel):
+    file_name: Optional[str] = Field(
+        None, description="Original filename of the parsed PDF document."
+    )
+    llm_config: Optional["LLMConfig"] = Field(
+        None,
+        description="Configuration used by the LLM for parsing this document.",
+    )
+    text_content: str = Field(
+        ...,
+        description="Combined markdown text content from all pages, with inlined "
+        "tables and image references.",
+    )
+    images: Dict[str, ImageMetadata] = Field(
+        default_factory=dict,
+        description=(
+            "Dictionary of image metadata keyed by reference path or fallback key. "
+            "Each entry contains base64 content and an optional description."
+        ),
+    )
+    skipped_pages: List[int] = Field(
+        default_factory=list,
+        description="List of page numbers that failed during LLM parsing.",
+    )
+    errors: Dict[int, str] = Field(
+        default_factory=dict,
+        description="Mapping from skipped page numbers to error messages.",
+    )
+    token_count: int = Field(
+        ...,
+        description="Total number of tokens used across all processed pages.",
+    )
+    timestamp: str = Field(
+        ..., description="UTC timestamp when the final response was generated."
+    )
+    start_page: int = Field(
+        ...,
+        description="First page number included in the processed document range.",
+    )
+    end_page: Optional[int] = Field(
+        None,
+        description="Last page number included in the processed document range, if "
+        "specified.",
     )

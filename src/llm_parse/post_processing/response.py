@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Dict, List, Optional
 
-from ..models import LLMParseResult
+from ..models import ImageMetadata, LLMParseResult
 from ..utils import denormalize_all_bboxes, get_logger
 
 logger = get_logger(__name__)
@@ -155,7 +155,7 @@ def postprocess_document_parse_results(
     it more suitable for downstream RAG applications.
     """
     final_text = []
-    images: Dict[str, Dict[str, str]] = {}
+    images: Dict[str, ImageMetadata] = {}
     skipped_pages: List[int] = []
     errors: Dict[int, str] = {}
     token_count = 0
@@ -231,10 +231,10 @@ def postprocess_document_parse_results(
                     base64_str = image.base64 or ""
 
                     # Store image info keyed by the reference key (path or fallback)
-                    images[ref_key] = {
-                        "base64": base64_str,
-                        "description": description,
-                    }
+                    images[ref_key] = ImageMetadata(
+                        base64=base64_str,
+                        description=description,
+                    )
 
             final_text.append(content)
 

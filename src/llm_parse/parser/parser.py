@@ -9,6 +9,7 @@ from llm_parse.models import (
     ImageRepresentation,
     LLMConfig,
     LLMParse,
+    LLMParseDocumentResponse,
     LLMParseResult,
     TableHandler,
 )
@@ -50,7 +51,7 @@ def process_pdf(
     return_images: Literal["base64", "path", "none"] = "base64",
     apply_document_postprocessing: bool = True,
     **post_process_kwargs,
-) -> Union[List[LLMParseResult], dict]:
+) -> Union[List[LLMParseResult], LLMParseDocumentResponse]:
     """
     Process a PDF document by sending each page as an image to an LLM dispatcher.
 
@@ -341,20 +342,23 @@ def process_pdf(
         post_process_kwargs.setdefault("start_page", start_page)
         post_process_kwargs.setdefault("end_page", end_page or total_pages)
 
-        processed_output = postprocess_document_parse_results(
+        processed_data = postprocess_document_parse_results(
             parsed_pdf, **post_process_kwargs
         )
         logger.info("Returning final processed document parse results.")
 
+        # Wrap the output in the response model if it's not already
+        document_response = LLMParseDocumentResponse(**processed_data)
+
         if write_to_disk:
             output_pdf_path = Path(output_dir or ".") / filename / "parsed_output.json"
-            # Ensure the parent directory exists
             output_dir_path = ensure_output_dir(output_pdf_path.parent)
             if output_dir_path is not None:
-                save_model(processed_output, output_pdf_path)
+                save_model(document_response, output_pdf_path)
             else:
                 logger.warning("❌ Skipping save: Unable to ensure output directory.")
-        return processed_output
+
+        return document_response
     else:
         logger.info("Returning raw parsed results without post-processing.")
         return parsed_pdf
