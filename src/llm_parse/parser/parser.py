@@ -249,60 +249,65 @@ def process_pdf_with_llm(
                 parsed_pdf.append(parsed_page)
 
                 filename = handler.file_name.replace(".", "_")
+
+                # Build image crops
+                image_crops = []
+
+                if return_images in ("base64", "path"):
+                    for key, img in cropped_images.items():
+                        image_entry = ImageRepresentation(
+                            key=key,
+                            base64=(
+                                encode_image_to_base64(img)
+                                if return_images == "base64"
+                                else None
+                            ),
+                            path=(
+                                str(
+                                    Path(output_dir or ".")
+                                    / filename
+                                    / f"page_{page_number:03d}"
+                                    / f"{key}.png"
+                                )
+                                if return_images == "path"
+                                else None
+                            ),
+                            size=img.size,
+                            format="png",
+                        )
+                        image_crops.append(image_entry)
+
+                if parsed_page.image_data is None:
+                    parsed_page.image_data = ImageParseData()
+
+                parsed_page.image_data.crops = image_crops
+
+                # This block ONLY handles disk writing
                 if write_to_disk:
                     page_tag = f"page_{page_number:03d}"
                     output_dir_path = Path(output_dir or ".") / filename / page_tag
                     output_dir_path = ensure_output_dir(output_dir_path)
                     if output_dir_path is None:
                         logger.warning(
-                            f"⚠️ Skipping disk write: could not ensure output directory"
+                            f"⚠️ Skipping disk write: could not ensure output directory "
                             f"for page {page_number}. No output directory available"
                         )
-                        # Continue processing, just skip disk writes
-                        continue
+                    else:
+                        output_path = output_dir_path / "response.json"
+                        save_model(model=parsed_page, output_path=output_path)
+                        logger.info(f"✅ Response saved at {output_path}")
 
-                    if return_images in ("base64", "path"):
-                        image_crops = []
+                        annotated_path = output_dir_path / "annotated.png"
+                        annotated_image.save(annotated_path)
+                        logger.info(f"🖼️ Annotated image saved at {annotated_path}")
 
-                        for key, img in cropped_images.items():
-                            image_entry = ImageRepresentation(
-                                key=key,
-                                base64=(
-                                    encode_image_to_base64(img)
-                                    if return_images == "base64"
-                                    else None
-                                ),
-                                path=(
-                                    str(output_dir_path / f"{key}.png")
-                                    if (
-                                        return_images == "path"
-                                        and write_to_disk
-                                        and output_dir_path
-                                    )
-                                    else None
-                                ),
-                                size=img.size,
-                                format="png",
+                        for key, cropped_img in cropped_images.items():
+                            crop_path = output_dir_path / f"{key}.png"
+                            cropped_img.save(crop_path)
+                            logger.debug(
+                                f"🖼️ Cropped image '{key}' saved at {crop_path}"
                             )
-                            image_crops.append(image_entry)
 
-                    if parsed_page.image_data is None:
-                        parsed_page.image_data = ImageParseData()
-
-                    parsed_page.image_data.crops = image_crops
-
-                    output_path = output_dir_path / "response.json"
-                    save_model(model=parsed_page, output_path=output_path)
-                    logger.info(f"✅ Response saved at {output_path}")
-
-                    annotated_path = output_dir_path / "annotated.png"
-                    annotated_image.save(annotated_path)
-                    logger.info(f"🖼️ Annotated image saved at {annotated_path}")
-
-                    for key, cropped_img in cropped_images.items():
-                        crop_path = output_dir_path / f"{key}.png"
-                        cropped_img.save(crop_path)
-                        logger.debug(f"🖼️ Cropped image '{key}' saved at {crop_path}")
                 logger.info(
                     f"{'--'*50}\nParsing completed for the file:page {filename}:"
                     f"{page_number}"
