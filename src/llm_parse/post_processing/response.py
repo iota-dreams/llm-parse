@@ -156,7 +156,6 @@ def postprocess_document_parse_results(
     """
     final_text = []
     images: Dict[str, Dict[str, str]] = {}
-    image_descriptions: Dict[str, str] = {}
     skipped_pages: List[int] = []
     errors: Dict[int, str] = {}
     token_count = 0
@@ -196,14 +195,16 @@ def postprocess_document_parse_results(
                     # dictionary
                     if prefer_file_path and image.path:
                         ref_key = str(image.path)
-                        image_md = f"![{key}]({ref_key})"
                     else:
-                        # Fallback key construction if no path available
+                        # Fallback key construction if no path available or
+                        # prefer_file_path is False
                         ref_key = (
                             f"{result.file_name}_page_{result.page_number:03d}_"
                             f"{key}"
                         )
-                        image_md = f"![{key}]({ref_key})"
+
+                    # Markdown uses ref_key for src
+                    image_md = f"![{key}]({ref_key})"
 
                     # Optional description for the image
                     description = ""
@@ -216,6 +217,7 @@ def postprocess_document_parse_results(
                             description = desc_obj.description
 
                     # Replace placeholder in text_content with markdown + description
+                    # (if any)
                     image_description_md = (
                         f"  \n**Image description:** {description}"
                         if description
@@ -246,7 +248,6 @@ def postprocess_document_parse_results(
         "llm_config": llm_config,
         "text_content": "\n\n".join(final_text).strip(),
         "images": images,
-        "image_descriptions": image_descriptions,
         "skipped_pages": skipped_pages,
         "errors": errors,
         "token_count": token_count,
