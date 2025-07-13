@@ -170,3 +170,4 @@ docker-volume/
 **/test_dev.py
 **/data
 **/logo
+**/api_output
