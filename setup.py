@@ -45,7 +45,7 @@ setup(
     description="An open source package for parsing documents using an LLM",
     author="Srikanth Sripada",
     author_email="srikanth6991@gmail.com",
-    url="https://github.com/srikanth-sripada/llm-parse",
+    url="https://github.com/iota-dreams/llm-parse",
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
