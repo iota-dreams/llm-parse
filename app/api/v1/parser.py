@@ -5,6 +5,8 @@ from typing import Literal, Optional
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
+
+from app.schemas import PDFParseRequest
 from llm_parse.models import (
     LLMConfig,
     LLMParse,
@@ -13,8 +15,6 @@ from llm_parse.models import (
 )
 from llm_parse.parser import process_pdf
 from llm_parse.utils import get_logger, load_config
-
-from app.schemas import PDFParseRequest
 
 router = APIRouter()
 logger = get_logger("LLM_API")

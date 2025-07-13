@@ -3,9 +3,9 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from llm_parse.utils import get_logger
 
 from app.api.v1 import router as parser_router
+from llm_parse.utils import get_logger
 
 load_dotenv()
 logger = get_logger("LLM_API")

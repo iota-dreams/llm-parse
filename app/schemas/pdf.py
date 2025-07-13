@@ -1,7 +1,8 @@
 from typing import Literal, Optional
 
-from llm_parse.models import LLMConfig, TableHandler
 from pydantic import BaseModel
+
+from llm_parse.models import LLMConfig, TableHandler
 
 
 class PDFParseRequest(BaseModel):
