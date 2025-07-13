@@ -1,6 +1,10 @@
+import io
 import traceback
 from pathlib import Path
-from typing import List, Literal, Optional, Union
+from typing import Any, List, Literal, Optional, Tuple, Union
+
+import fitz  # PyMuPDF
+from PIL import Image
 
 from llm_parse.file_handlers import PDFHandler
 from llm_parse.llm import dispatch_llm_request, vlm_description
@@ -42,15 +46,15 @@ def process_pdf(
     start_page: int = 1,
     end_page: Optional[int] = None,
     response_model: type = LLMParse,
-    table_handler: Optional[TableHandler] = TableHandler.html,
+    table_handler: TableHandler = TableHandler.html,
     denormalize_images: bool = True,
     user_question: Optional[str] = None,
     password: Optional[str] = "",
-    write_to_disk: Optional[bool] = False,
-    output_dir: Optional[str] = "",
+    write_to_disk: bool = False,
+    output_dir: Optional[str] = None,
     return_images: Literal["base64", "path", "none"] = "base64",
     apply_document_postprocessing: bool = True,
-    **post_process_kwargs,
+    **post_process_kwargs: Any,
 ) -> Union[List[LLMParseResult], LLMParseDocumentResponse]:
     """
     Process a PDF document by sending each page as an image to an LLM dispatcher.
@@ -131,23 +135,31 @@ def process_pdf(
         If True (default), the results are transformed into a RAG-friendly response
         format. If False, the raw parsed results are returned as-is.
 
-    post_process_kwargs : dict, optional
-        Additional keyword arguments passed to the post-processing function.
-        Useful for controlling post-processing behavior like preference for file paths
-        or other future options. If no additional options are needed, this can be
-        omitted.
+    post_process_kwargs : Dict[str, Any], optional
+        Additional keyword arguments passed to `postprocess_document_parse_results`.
+
+        Supported keys:
+            - prefer_file_path (bool, default=True): If True, image crops in the final
+              output will prefer file paths over base64-encoded strings.
+            - start_page (int, optional): First page index used during parsing.
+            Automatically inferred if not provided.
+            - end_page (int, optional): Last page index used during parsing.
+            Automatically inferred if not provided.
 
     Returns
     -------
-    Union[List[LLMParseResult], dict]
-        - Raw page-level parse results (if post_process=False)
-        - Final RAG-friendly structure (if post_process=True)
+    Union[List[LLMParseResult], LLMParseDocumentResponse]
+        - List of page-level results (if apply_document_postprocessing=False)
+        - Combined and enriched document-level output
+        (if apply_document_postprocessing=True)
 
     Raises
     ------
     RuntimeError
         If the PDF cannot be loaded successfully (e.g., corrupt or unreadable).
     """
+    if not output_dir:
+        output_dir = "."
 
     handler = PDFHandler(file_path, password=password or "")
     if handler.document is None:
@@ -155,184 +167,39 @@ def process_pdf(
 
     parsed_pdf = []
     total_pages = handler.total_pages
+    filename = handler.file_name.replace(".", "_")
+
     try:
+        logger.info(
+            f"Starting PDF parsing from page {start_page} to "
+            f"{end_page or handler.total_pages}"
+        )
+
         for (
             page_number,
             image,
             (pdf_page_width, pdf_page_height),
         ) in handler.extract_screenshots(start_page=start_page, end_page=end_page):
-            logger.info(f"Dispatching LLM request for page {page_number}...")
-            image_bbox_guide = extract_image_bboxes_from_page_obj(
-                doc=handler.document, page_number=page_number, normalize=True
+            page_obj = handler.document.load_page(page_number - 1)
+            parsed_page = parse_page(
+                page_obj=page_obj,
+                parser_config=parser_config,
+                response_model=response_model,
+                table_handler=table_handler,
+                user_question=user_question,
+                enable_image_description=enable_image_description,
+                image_description_config=image_description_config,
+                denormalize_images=denormalize_images,
+                return_images=return_images,
+                write_to_disk=write_to_disk,
+                output_dir=output_dir,
+                page_number=page_number,
+                total_pages=total_pages,
+                file_name=filename,
+                image=image,
+                pdf_page_dimensions=(pdf_page_width, pdf_page_height),
             )
-            try:
-                table_format = getattr(table_handler, "value", "html")
-
-                llm_parse = dispatch_llm_request(
-                    config=parser_config,
-                    response_model=response_model,
-                    user_question=user_question,
-                    image=image,
-                    table_format=table_format,
-                    image_bbox_guide=image_bbox_guide,
-                )
-
-                logger.info(f"✅ Page {page_number} response captured")
-                logger.debug(f"✅ Page {page_number} response: {llm_parse}")
-
-                if isinstance(llm_parse, str):
-                    raise TypeError(
-                        "Expected structured LLMParse response, got raw string."
-                    )
-
-                # Step 1: Extract and inject hyperlinks
-                parsed_page, hyperlink_uris = inject_pdf_hyperlinks(
-                    llm_parse=llm_parse,
-                    page_obj=handler.document[page_number - 1],
-                    relative_hyperlink_extract=True,
-                )
-
-                # Step 2: Annotate and crop image using bounding boxes
-                # We are prompting LLM to give normalized bboxes. So, this can be
-                # set to `True`
-                is_normalized = True
-
-                annotated_image = annotate_image_with_bbox(
-                    image=image,
-                    image_bbox=llm_parse.image_bbox,
-                    normalized=is_normalized,
-                )
-
-                cropped_images = crop_images_from_bbox(
-                    image=image,
-                    image_bbox=llm_parse.image_bbox,
-                    normalized=is_normalized,
-                )
-
-                # Step 3: Optionally describe cropped image regions using VLM
-                image_descriptions = None
-                if (
-                    enable_image_description
-                    and cropped_images
-                    and image_description_config
-                ):
-                    prompt = image_description_config.prompt
-                    image_descriptions = vlm_description(
-                        images=cropped_images,
-                        config=image_description_config,
-                        prompt=prompt,
-                    )
-
-                # Step 4: Finalize parsed page using build_llm_parse_result
-                parsed_page = build_llm_parse_result(
-                    llm_parse=llm_parse,
-                    parser_config=parser_config,
-                    file_name=handler.file_name,
-                    page_number=page_number,
-                    total_pages=total_pages,
-                    image=image,
-                    pdf_page_dimensions=(pdf_page_width, pdf_page_height),
-                    hyperlink_guide=hyperlink_uris,
-                    image_data=ImageParseData(
-                        bbox_guide=image_bbox_guide,
-                        descriptions=image_descriptions,
-                        description_config=image_description_config,
-                    ),
-                )
-
-                # Step 5: Page-level postprocessing (e.g., denormalization)
-                parsed_page = postprocess_page_parse_result(
-                    result=parsed_page,
-                    denormalize_images=denormalize_images,
-                )
-
-                # Step 6: Append to result list
-                parsed_pdf.append(parsed_page)
-
-                filename = handler.file_name.replace(".", "_")
-
-                # Build image crops
-                image_crops = []
-
-                if return_images in ("base64", "path"):
-                    for key, img in cropped_images.items():
-                        image_entry = ImageRepresentation(
-                            key=key,
-                            base64=(
-                                encode_image_to_base64(img)
-                                if return_images == "base64"
-                                else None
-                            ),
-                            path=(
-                                str(
-                                    Path(output_dir or ".")
-                                    / filename
-                                    / f"page_{page_number:03d}"
-                                    / f"{key}.png"
-                                )
-                                if return_images == "path"
-                                else None
-                            ),
-                            size=img.size,
-                            format="png",
-                        )
-                        image_crops.append(image_entry)
-
-                if parsed_page.image_data is None:
-                    parsed_page.image_data = ImageParseData()
-
-                parsed_page.image_data.crops = image_crops
-
-                # This block ONLY handles disk writing
-                if write_to_disk:
-                    page_tag = f"page_{page_number:03d}"
-                    output_dir_path = Path(output_dir or ".") / filename / page_tag
-                    output_dir_path = ensure_output_dir(output_dir_path)
-                    if output_dir_path is None:
-                        logger.warning(
-                            f"⚠️ Skipping disk write: could not ensure output directory "
-                            f"for page {page_number}. No output directory available"
-                        )
-                    else:
-                        output_path = output_dir_path / "response.json"
-                        save_model(model=parsed_page, output_path=output_path)
-                        logger.info(f"✅ Response saved at {output_path}")
-
-                        annotated_path = output_dir_path / "annotated.png"
-                        annotated_image.save(annotated_path)
-                        logger.info(f"🖼️ Annotated image saved at {annotated_path}")
-
-                        for key, cropped_img in cropped_images.items():
-                            crop_path = output_dir_path / f"{key}.png"
-                            cropped_img.save(crop_path)
-                            logger.debug(
-                                f"🖼️ Cropped image '{key}' saved at {crop_path}"
-                            )
-
-                logger.info(
-                    f"{'--'*50}\nParsing completed for the file:page {filename}:"
-                    f"{page_number}"
-                )
-
-            except Exception as e:
-                logger.error(f"❌ LLM failed for page {page_number}: {e}")
-                logger.error(traceback.format_exc())
-                fallback = handle_llm_failure(
-                    file_name=handler.file_name,
-                    page_number=page_number,
-                    total_pages=total_pages,
-                    parser_config=parser_config,
-                    image=image,
-                    pdf_page_dimensions=(pdf_page_width, pdf_page_height),
-                    image_bbox_guide=image_bbox_guide,
-                    output_dir=output_dir,
-                    write_to_disk=(
-                        write_to_disk if write_to_disk is not None else False
-                    ),
-                    return_images=return_images,
-                    error=e,
-                )
-                parsed_pdf.append(fallback)
+            parsed_pdf.append(parsed_page)
 
     finally:
         handler.close()
@@ -362,3 +229,236 @@ def process_pdf(
     else:
         logger.info("Returning raw parsed results without post-processing.")
         return parsed_pdf
+
+
+def parse_page(
+    *,
+    page_obj: fitz.Page,
+    parser_config: LLMConfig,
+    response_model: type = LLMParse,
+    table_handler: Optional[TableHandler] = TableHandler.html,
+    user_question: Optional[str] = None,
+    enable_image_description: bool = False,
+    image_description_config: Optional[LLMConfig] = None,
+    denormalize_images: bool = True,
+    return_images: Literal["base64", "path", "none"] = "base64",
+    write_to_disk: bool = False,
+    output_dir: Optional[str] = None,
+    page_number: int = 1,
+    total_pages: Optional[int] = None,
+    file_name: Optional[str] = "document",
+    image: Optional[Image.Image] = None,
+    pdf_page_dimensions: Optional[Tuple[float, float]] = None,
+) -> LLMParseResult:
+    """
+    Parses a single PDF page using the LLM pipeline and returns a structured result.
+
+    Supports both:
+    - Standalone parsing: Just pass `page_obj`; the rest is inferred.
+    - Batched parsing (via `process_pdf`): `image`, `file_name`, etc. are passed in.
+
+    Parameters
+    ----------
+    page_obj : fitz.Page
+        Required. The PDF page object to parse.
+
+    parser_config : Optional[LLMConfig]
+        Required if calling LLMs. Model settings for LLM dispatcher.
+
+    response_model : type
+        Pydantic model to decode LLM response. Defaults to LLMParse.
+
+    table_handler : Optional[TableHandler]
+        How to render tables (e.g., 'html' or 'markdown').
+
+    user_question : Optional[str]
+        Optional user prompt to guide LLM parsing.
+
+    enable_image_description : bool
+        If True, cropped regions are described using a vision-language model (VLM).
+
+    image_description_config : Optional[LLMConfig]
+        LLMConfig for the image captioning VLM.
+
+    denormalize_images : bool
+        Convert normalized bounding boxes to pixel-space if True.
+
+    return_images : {"base64", "path", "none"}
+        Controls how image crops are embedded.
+
+    write_to_disk : bool
+        Save annotated/cropped images and JSON output to disk.
+
+    output_dir : Optional[str]
+        Base directory for file outputs.
+
+    page_number : int, default=1
+        1-based page number. Defaults to 1 in standalone use.
+
+    total_pages : Optional[int]
+        Total number of pages in the document. Defaults to 1 if not passed.
+
+    file_name : Optional[str]
+        File name for metadata and output. Defaults to "document".
+
+    image : Optional[Image.Image]
+        Pre-rendered image of the page. If not provided, it's rendered from `page_obj`.
+
+    pdf_page_dimensions : Optional[Tuple[float, float]]
+        Dimensions in PDF space. If not provided, it's extracted from `page_obj`.
+
+    Returns
+    -------
+    LLMParseResult
+        Structured parse output with metadata and optionally image data.
+    """
+    if image is None:
+        pix = page_obj.get_pixmap(dpi=300)  # type: ignore[attr-defined]
+        image = Image.open(io.BytesIO(pix.tobytes("png")))
+
+    if pdf_page_dimensions is None:
+        pdf_page_dimensions = (page_obj.rect.width, page_obj.rect.height)
+
+    if total_pages is None:
+        total_pages = 1
+
+    file_name = file_name or "document"
+
+    assert page_obj.parent is not None, "Expected non-null parent document for page_obj"
+    image_bbox_guide = extract_image_bboxes_from_page_obj(
+        doc=page_obj.parent,
+        page_number=page_number,
+        normalize=True,
+    )
+
+    try:
+        table_format = getattr(table_handler, "value", "html")
+
+        llm_parse = dispatch_llm_request(
+            config=parser_config,
+            response_model=response_model,
+            user_question=user_question,
+            image=image,
+            table_format=table_format,
+            image_bbox_guide=image_bbox_guide,
+        )
+
+        logger.info(f"✅ Page {page_number} response captured")
+        logger.debug(f"✅ Page {page_number} response: {llm_parse}")
+
+        if isinstance(llm_parse, str):
+            raise TypeError("Expected structured LLMParse response, got raw string.")
+
+        parsed_page, hyperlink_uris = inject_pdf_hyperlinks(
+            llm_parse=llm_parse,
+            page_obj=page_obj,
+            relative_hyperlink_extract=True,
+        )
+
+        is_normalized = True
+        annotated_image = annotate_image_with_bbox(
+            image=image,
+            image_bbox=llm_parse.image_bbox,
+            normalized=is_normalized,
+        )
+
+        cropped_images = crop_images_from_bbox(
+            image=image,
+            image_bbox=llm_parse.image_bbox,
+            normalized=is_normalized,
+        )
+
+        image_descriptions = None
+        if enable_image_description and cropped_images and image_description_config:
+            prompt = image_description_config.prompt
+            image_descriptions = vlm_description(
+                images=cropped_images,
+                config=image_description_config,
+                prompt=prompt,
+            )
+
+        parsed_page = build_llm_parse_result(
+            llm_parse=llm_parse,
+            parser_config=parser_config,
+            file_name=file_name,
+            page_number=page_number,
+            total_pages=total_pages,
+            image=image,
+            pdf_page_dimensions=pdf_page_dimensions,
+            hyperlink_guide=hyperlink_uris,
+            image_data=ImageParseData(
+                bbox_guide=image_bbox_guide,
+                descriptions=image_descriptions,
+                description_config=image_description_config,
+            ),
+        )
+
+        parsed_page = postprocess_page_parse_result(
+            result=parsed_page,
+            denormalize_images=denormalize_images,
+        )
+
+        image_crops = []
+        if return_images in ("base64", "path"):
+            for key, img in cropped_images.items():
+                image_entry = ImageRepresentation(
+                    key=key,
+                    base64=(
+                        encode_image_to_base64(img)
+                        if return_images == "base64"
+                        else None
+                    ),
+                    path=(
+                        str(
+                            Path(output_dir or ".")
+                            / file_name.replace(".", "_")
+                            / f"page_{page_number:03d}"
+                            / f"{key}.png"
+                        )
+                        if return_images == "path"
+                        else None
+                    ),
+                    size=img.size,
+                    format="png",
+                )
+                image_crops.append(image_entry)
+
+        if parsed_page.image_data is None:
+            parsed_page.image_data = ImageParseData()
+
+        parsed_page.image_data.crops = image_crops
+
+        if write_to_disk:
+            output_base = Path(output_dir or ".") / file_name.replace(".", "_")
+            output_dir_path = ensure_output_dir(output_base / f"page_{page_number:03d}")
+            if output_dir_path is not None:
+                save_model(parsed_page, output_dir_path / "response.json")
+                annotated_image.save(output_dir_path / "annotated.png")
+                for key, cropped_img in cropped_images.items():
+                    cropped_img.save(output_dir_path / f"{key}.png")
+            else:
+                logger.warning("⚠️ Skipping disk write: Unable to ensure output dir.")
+
+        logger.info(f"✅ Completed parsing for {file_name}:page {page_number}")
+        logger.info(
+            f"✅ Completed parsing for file:page {file_name}:"
+            f"{page_number} {'--'*50}\n"
+        )
+        return parsed_page
+
+    except Exception as e:
+        logger.error(f"❌ LLM failed for page {page_number}: {e}")
+        logger.error(traceback.format_exc())
+        return handle_llm_failure(
+            file_name=file_name,
+            page_number=page_number,
+            total_pages=total_pages,
+            parser_config=parser_config,
+            image=image,
+            pdf_page_dimensions=pdf_page_dimensions,
+            image_bbox_guide=image_bbox_guide,
+            output_dir=output_dir,
+            write_to_disk=write_to_disk,
+            return_images=return_images,
+            error=e,
+        )
