@@ -33,7 +33,7 @@ app.add_middleware(
 )
 
 # Mount versioned router
-app.include_router(parser_router, prefix="/parse", tags=["PDF Parser"])
+app.include_router(parser_router, prefix="/parse")
 
 
 @app.get("/", tags=["Health"])

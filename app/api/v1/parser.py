@@ -135,7 +135,7 @@ async def parse_pdf_endpoint(
         ) from e
 
 
-@router.post("/json", summary="Parse PDF via JSON input", tags=["PDF Parser"])
+@router.post("/json", summary="Parse PDF via JSON input")
 async def parse_pdf_from_json(request: PDFParseRequest):
     """
     Accepts a JSON payload with a file path and parsing configs.
