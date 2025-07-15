@@ -2,7 +2,8 @@ import uvicorn
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.api.v1 import router as parser_router
 from llm_parse.utils import get_logger
@@ -18,6 +19,8 @@ app = FastAPI(
     redoc_url="/redoc",
     openapi_url="/openapi.json",
 )
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
+
 
 # CORS setup (edit 'allow_origins' for security in production)
 app.add_middleware(
@@ -51,6 +54,11 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
         status_code=500,
         content={"detail": "Internal server error. Please try again later."},
     )
+
+
+@app.get("/favicon.ico")
+async def favicon():
+    return FileResponse("app/static/favicon.ico")
 
 
 if __name__ == "__main__":
