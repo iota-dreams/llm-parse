@@ -203,7 +203,10 @@ def process_pdf(
 
     finally:
         handler.close()
-        logger.info("PDF processing complete.")
+        logger.info(
+            "Page level PDF processing complete. Combined JSON file will be "
+            "generated if `apply_document_postprocessing` is set to True"
+        )
     if apply_document_postprocessing:
         logger.info("Applying document-level post-processing to all parsed pages...")
         post_process_kwargs.setdefault("start_page", start_page)
@@ -222,6 +225,7 @@ def process_pdf(
             output_dir_path = ensure_output_dir(output_pdf_path.parent)
             if output_dir_path is not None:
                 save_model(document_response, output_pdf_path)
+                logger.info(f"Parsed PDF saved at {output_pdf_path}.")
             else:
                 logger.warning("❌ Skipping save: Unable to ensure output directory.")
 
@@ -439,7 +443,6 @@ def parse_page(
             else:
                 logger.warning("⚠️ Skipping disk write: Unable to ensure output dir.")
 
-        logger.info(f"✅ Completed parsing for {file_name}:page {page_number}")
         logger.info(
             f"✅ Completed parsing for file:page {file_name}:"
             f"{page_number} {'--'*50}\n"
