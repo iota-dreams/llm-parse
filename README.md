@@ -16,7 +16,10 @@ pip install llm-parse
 
 ## 🧪 Quickstart Example
 
-Parse a PDF using an LLM by loading your model configuration and prompt from `configs/prompts.yaml`.
+Parse a PDF using an LLM by loading your model configuration and prompt from `configs/prompts.yaml`. You can use this library either as a Python module or via the built-in FastAPI service.
+---
+
+### ▶️ Option 1: Run from Python Script
 
 ```python
 import os
@@ -68,10 +71,37 @@ results = process_pdf(
 print(results[0].text)
 ```
 
-📁 Prompt Configuration
+---
+
+### 🌐 Option 2: Use the FastAPI Server
+
+Start the server:
+
+```bash
+uvicorn app.main:app --reload
+```
+
+#### ⬆️ Upload a File via /parse-pdf
+
+```bash
+curl -X POST http://localhost:8000/api/v1/parse-pdf \
+  -F file=@sample.pdf \
+  -F enable_image_description=true \
+  -F return_images=base64 \
+  -F start_page=1 \
+  -F end_page=2
+```
+
+You'll receive a structured JSON response with extracted text, image descriptions, tables, and metadata.
+#### 📘 Alternative: Use Swagger UI
+
+Open http://localhost:8000/docs in your browser to explore all routes with Swagger.
+
+
+### 📁 Prompt Configuration
 
 Prompts are loaded from configs/prompts.yaml, like this:
-```
+```yaml
 google_genai:
   gemini-1.5-pro-latest:
     parse:
