@@ -2,7 +2,7 @@
 
 This project uses:
 
-* [`conda`](https://docs.conda.io/)[/](https://docs.conda.io/)[`mamba`](https://docs.conda.io/) for environment management
+* [`conda`](https://docs.conda.io/)[/](https://docs.conda.io/)[`mamba`](https://mamba.readthedocs.io/en/latest/) for environment management
 * [`direnv`](https://direnv.net/) for automatic shell activation (optional)
 * `black`, `ruff`, `isort` for formatting and linting
 * `pre-commit` for enforcing standards
