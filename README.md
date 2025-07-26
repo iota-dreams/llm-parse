@@ -124,4 +124,4 @@ You can customize the provider, model, temperature, and prompt templates per use
 
 ## 🔗 Contributing
 
-We welcome contributions! Please check the [contribution guide]().
+We welcome contributions! Please check the [contribution guide](CONTRIBUTING.md).
