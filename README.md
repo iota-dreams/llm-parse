@@ -2,6 +2,12 @@
 
 > An open source package for parsing documents using an LLM.
 
+# Architecture diagram
+
+![Architecture](docs/images/arch.drawio.png)
+
+> ✏️ You can open `arch.drawio.png` in [draw.io](https://app.diagrams.net) to edit this diagram directly.
+
 ---
 
 ## 🧰 Developer Setup
@@ -58,7 +64,7 @@ conda install mamba -n base -c conda-forge
 ### 2. Clone & Setup Environment
 
 ```bash
-git clone https://github.com/srikanth-sripada/llm-parse
+git clone https://github.com/iota-dreams/llm-parse
 cd llm_parse
 ```
 
