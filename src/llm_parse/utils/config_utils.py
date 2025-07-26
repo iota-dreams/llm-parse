@@ -1,4 +1,4 @@
-import os
+from pathlib import Path
 
 import yaml
 
@@ -37,13 +37,17 @@ def load_config(file_path, dotify=True):
     Loads a YAML file and optionally converts it into a DotDict.
 
     Parameters:
-        file_path (str): Path to the YAML file.
+        file_path (str): Path to the YAML file. Can be relative, absolute, or include ~.
         dotify (bool): Whether to return a DotDict for dot notation access.
 
     Returns:
         dict or DotDict: Parsed YAML content.
+
+    Raises:
+        FileNotFoundError: If the file doesn't exist.
+        yaml.YAMLError: If the YAML is malformed.
     """
-    abs_path = os.path.abspath(file_path)
+    abs_path = Path(file_path).expanduser().resolve(strict=True)
     with open(abs_path, "r", encoding="utf-8") as f:
         data = yaml.safe_load(f)
     return DotDict(data) if dotify else data
