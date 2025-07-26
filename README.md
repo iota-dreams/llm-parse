@@ -17,6 +17,7 @@ pip install llm-parse
 ## 🧪 Quickstart Example
 
 Parse a PDF using an LLM by loading your model configuration and prompt from `configs/prompts.yaml`. You can use this library either as a Python module or via the built-in FastAPI service.
+
 ---
 
 ### ▶️ Option 1: Run from Python Script
