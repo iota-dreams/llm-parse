@@ -51,4 +51,9 @@ setup(
         "License :: OSI Approved :: MIT License",
     ],
     python_requires=">=3.11",
+    entry_points={
+        "console_scripts": [
+            "llm_parse = llm_parse.main:main",
+        ],
+    },
 )

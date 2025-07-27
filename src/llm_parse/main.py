@@ -9,7 +9,8 @@ from .cli import parse_args
 
 logger = get_logger("LLM_parser")
 
-if __name__ == "__main__":
+
+def main():
     # Decide based on CLI args whether to use defaults
     cli_enabled = len(sys.argv) > 1  # True if CLI arguments are passed
     # Set Gemini API key
@@ -78,3 +79,8 @@ if __name__ == "__main__":
         return_images=return_images,
         apply_document_postprocessing=apply_document_postprocessing,
     )
+    return parsed_pdf
+
+
+if __name__ == "__main__":
+    parsed_pdf = main()
