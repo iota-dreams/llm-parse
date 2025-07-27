@@ -30,6 +30,27 @@ done
 echo "📦 Generating deploy/requirements.txt from filtered source..."
 pipreqs "$TMP_DIR" --force --savepath deploy/requirements.txt
 
+# 🔧 Remove incorrect 'fitz' entry (alias for PyMuPDF)
+sed -i.bak '/^fitz==/d' deploy/requirements.txt && rm deploy/requirements.txt.bak
+
+# 📌 Append runtime-only packages with comment block
+EXTRA_REQUIREMENTS_FILE="deploy/always_include.txt"
+
+if [[ -f "$EXTRA_REQUIREMENTS_FILE" ]]; then
+    {
+        echo ""
+        echo "# ---"
+        echo "# The following packages are required for Docker/runtime"
+        echo "# They are not directly imported in the source code, so pipreqs won't detect them"
+        echo "# Maintained manually in deploy/always_include.txt"
+        echo "# ---"
+        cat "$EXTRA_REQUIREMENTS_FILE"
+    } >> deploy/requirements.txt
+    echo "📌 Appended always-include packages to requirements.txt"
+else
+    echo "⚠️ $EXTRA_REQUIREMENTS_FILE not found; skipping runtime-only packages"
+fi
+
 # (Optional) Create or ensure deploy/requirements_cloud.txt exists
 if [[ ! -f deploy/requirements_cloud.txt ]]; then
     cat > deploy/requirements_cloud.txt <<EOF

@@ -54,7 +54,7 @@ def get_llm_provider(config: LLMConfig) -> BaseChatModel:
         llm = init_chat_model(
             model=config.model_name,
             model_provider=provider,
-            temperature=config.temperature or 0.7,
+            temperature=config.temperature or 0.3,
             timeout=getattr(config, "timeout", None),
         )
         if not isinstance(llm, BaseChatModel):

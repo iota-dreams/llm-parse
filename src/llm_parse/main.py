@@ -31,14 +31,14 @@ if __name__ == "__main__":
     parse_config = LLMConfig(
         provider=parse_config.provider,
         model_name=parse_config.model_name,
-        temperature=parse_config.get("temperature", 0.7),
+        temperature=parse_config.get("temperature", 0),
         prompt=parse_config.prompt,
     )
     image_description_config = load_config("configs/prompts.yaml").image_description
     image_description_config = LLMConfig(
         provider=image_description_config.provider,
         model_name=image_description_config.model_name,
-        temperature=image_description_config.get("temperature", 0.7),
+        temperature=image_description_config.get("temperature", 0),
         prompt=image_description_config.prompt,
     )
 

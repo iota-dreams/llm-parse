@@ -76,7 +76,7 @@ def call_llm(
         llm: BaseChatModel = init_chat_model(
             model=config.model_name,
             model_provider=config.provider,
-            temperature=config.temperature or 0.7,
+            temperature=config.temperature or 0.3,
             timeout=getattr(config, "timeout", None),
             model_kwargs=model_kwargs,
         )

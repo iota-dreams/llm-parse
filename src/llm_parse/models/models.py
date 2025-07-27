@@ -36,7 +36,7 @@ class LLMConfig(BaseModel):
 
     provider: str  # "anthropi", "google_gemini", "google_genai", "openai"  Refer this: https://python.langchain.com/docs/integrations/chat/
     model_name: str
-    temperature: Optional[float] = 0.7
+    temperature: Optional[float] = 3
     prompt: str  # Base system or task prompt
     image_path: Optional[Union[str, Path]] = None
     table_type: Optional[str] = "html"
