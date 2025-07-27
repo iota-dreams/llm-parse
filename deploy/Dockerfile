@@ -28,7 +28,7 @@ COPY setup.py deploy/requirements.txt ./
 
 # Install Python dependencies
 RUN pip install --upgrade pip setuptools wheel \
-    && pip install .
+    && --no-cache-dir .
 
 # Expose FastAPI default port
 EXPOSE 8000

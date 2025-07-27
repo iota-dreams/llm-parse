@@ -80,3 +80,19 @@ clean: clean-docker
 	find . -type d -name "__pycache__" -exec rm -r {} +
 	find . -type f -name "*.pyc" -delete
 	@echo "✅ Clean complete."
+
+# 🐳 Run local development server with hot reload
+dev: check-env
+	docker compose -f docker-compose.dev.yaml up --build
+
+# 🐳 Stop dev container
+dev-down:
+	docker compose -f docker-compose.dev.yaml down
+
+# 🚀 Run production server (no reload, no volume mounts)
+prod:
+	docker compose -f docker-compose.prod.yaml up --build
+
+# 🛑 Stop prod container
+prod-down:
+	docker compose -f docker-compose.prod.yaml down
