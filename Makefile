@@ -62,8 +62,19 @@ docs: check-env
 	cd docs && make html
 	@echo "✅ Docs built at docs/build/html/index.html"
 
+# 🐳 Clean up unused Docker artifacts
+clean-docker:
+	@command -v docker >/dev/null 2>&1 || { echo "🐳 Docker not installed. Skipping Docker cleanup."; exit 0; }
+	@echo "🐋 Cleaning unused Docker resources..."
+	@docker image prune -a -f
+	@docker container prune -f
+	@docker builder prune -f
+	@echo "✅ Docker cleanup complete."
+	@echo "📊 Docker system disk usage after cleanup:"
+	@docker system df | grep -E 'Images|Containers|Volumes|Build Cache'
+
 # 🧽 Clean up build artifacts
-clean:
+clean: clean-docker
 	@echo "🧽 Cleaning build artifacts..."
 	rm -rf docs/build
 	find . -type d -name "__pycache__" -exec rm -r {} +
