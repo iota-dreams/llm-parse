@@ -1,6 +1,7 @@
 import base64
 import io
 import os
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
 from langchain.chat_models import init_chat_model
@@ -21,30 +22,23 @@ def supports_multimodal(provider: str, model_name: Optional[str] = None) -> bool
     Check if the given provider and model support multimodal input,
     based on YAML-defined known capabilities.
 
-    Parameters
-    ----------
-    provider : str
-        LLM provider name (e.g., "openai").
-    model_name : str, optional
-        The model name to check.
-
-    Returns
-    -------
-    bool
-        True if image input is likely supported; False otherwise.
+    Uses CONFIG_ROOT environment variable to locate YAML files.
     """
     provider = provider.lower()
     model_name = (model_name or "").lower()
-    multimodal_support = os.path.join(
-        os.path.abspath(__file__),
-        os.pardir,
-        os.pardir,
-        os.pardir,
-        os.pardir,
-        "configs",
-        "multimodal_models.yaml",
-    )
-    MULTIMODAL_MODELS = load_config(file_path=multimodal_support, dotify=True)
+
+    # Resolve config root from environment or fallback to ./configs
+    env_root = os.getenv("CONFIG_ROOT")
+    default_root = Path(__file__).resolve().parents[3] / "configs"
+    config_root = Path(env_root) if env_root else default_root
+
+    config_path = config_root / "multimodal_models.yaml"
+
+    if not config_path.exists():
+        raise FileNotFoundError(f"Multimodal config not found: {config_path}")
+
+    logger.info(f"Loading multimodal config from: {config_path}")
+    MULTIMODAL_MODELS = load_config(file_path=config_path, dotify=True)
     supported_models = MULTIMODAL_MODELS.get(provider, [])
     return any(substr in model_name for substr in supported_models)
 

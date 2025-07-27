@@ -1,0 +1,97 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Compiled files
+*.so
+
+# Virtual environments
+.env
+.venv/
+.venv
+.envrc
+.direnv/
+venv/
+env/
+ENV/
+pip-wheel-metadata/
+
+# Distribution / packaging
+build/
+dist/
+.eggs/
+*.egg-info/
+*.egg
+*.whl
+*.manifest
+*.spec
+*.lock
+
+# Logs and temp files
+*.log
+*.tmp
+*.temp
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Test / Coverage
+.pytest_cache/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+*.cover
+nosetests.xml
+coverage.xml
+htmlcov/
+test-results/
+.hypothesis/
+
+# Type checker / linting
+.mypy_cache/
+.dmypy.json
+.pyre/
+.ruff_cache/
+
+# Editor/IDE configs
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# System files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Jupyter
+.ipynb_checkpoints/
+
+# PyInstaller
+*.spec
+
+# Poetry
+poetry.lock
+
+# Docker-related
+*.tar
+*.tar.gz
+*.img
+*.container
+docker-compose.override.yml
+.env.docker
+docker-volume/
+
+# Project-specific
+**/test_dev.py
+**/data
+**/logo
+**/api_output
+
+# Misc
+.python_history
+*.mo
+*.pot
+*.sqlite3
