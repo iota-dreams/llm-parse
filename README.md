@@ -111,29 +111,43 @@ Open http://localhost:8000/docs in your browser to explore all routes with Swagg
 You can also use `llm_parse` as a CLI tool after installing the package:
 
 ```bash
-llm_parse data/test/input/pdf/sample.pdf \
-  --start-page 1 \
-  --end-page 2 \
-  --enable-image-description \
-  --write-to-disk \
-  --return-images path \
-  --output-dir data/test/output/pdf
+llm_parse -f data/test/input/pdf/sample.pdf \
+  -s 1 \
+  -e 2 \
+  -i \
+  -w \
+  -r path \
+  -o data/test/output/pdf \
+  -d \
+  -q "What is the main idea on this page?" \
+  --postprocess
 ```
 
 #### ✅ CLI Options
 
 Run `llm_parse --help` to see all available options:
 
-```bash
-usage: llm_parse FILE [--start-page N] [--end-page N]
-                      [--enable-image-description] [--write-to-disk]
-                      [--return-images {path,base64}]
-                      [--output-dir DIR] [--denormalize-images]
-                      [--question TEXT] [--password PWD] [--postprocess]
+```text
+usage: llm_parse [-f FILE] [-s START_PAGE] [-e END_PAGE]
+                 [-i] [-w] [-r {path,base64,none}]
+                 [-o OUTPUT_DIR] [-d]
+                 [-q QUESTION] [-p PASSWORD] [--postprocess]
+
+options:
+  -f, --file                  Path to input PDF file
+  -s, --start-page            Start page number (1-based)
+  -e, --end-page              End page number (inclusive)
+  -i, --enable-image-description  Enable image captioning
+  -w, --write-to-disk         Write outputs to disk
+  -r, --return-images         Return image format: path | base64 | none
+  -o, --output-dir            Directory to save output files
+  -d, --denormalize-images    Apply denormalization to images
+  -q, --question              User question for LLM to answer per page
+  -p, --password              Password for encrypted PDFs
+      --postprocess           Enable document-level post-processing
 ```
 
-This mode is ideal for scripting or integrating into data pipelines.
-
+This mode is ideal for scripting, automation, and integration into data pipelines.
 ### 📁 Prompt Configuration
 
 Prompts are loaded from configs/prompts.yaml, like this:
