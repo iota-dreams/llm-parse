@@ -2,6 +2,14 @@
 
 > An open source package for parsing documents using an LLM.
 
+![PyPI](https://img.shields.io/pypi/v/llm-parse)
+![Python](https://img.shields.io/pypi/pyversions/llm-parse)
+![License](https://img.shields.io/github/license/iota-dreams/llm-parse)
+![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)
+![CLI Support](https://img.shields.io/badge/CLI-Supported-blue?logo=gnu-bash&logoColor=white)
+![Docker](https://img.shields.io/badge/docker-available-blue?logo=docker)
+
+
 ## 🗂️ Architecture
 
 ![Architecture](docs/images/arch.drawio.png)
@@ -98,6 +106,33 @@ You'll receive a structured JSON response with extracted text, image description
 
 Open http://localhost:8000/docs in your browser to explore all routes with Swagger.
 
+### 📟 Option 3: Use the Command Line Interface
+
+You can also use `llm_parse` as a CLI tool after installing the package:
+
+```bash
+llm_parse data/test/input/pdf/sample.pdf \
+  --start-page 1 \
+  --end-page 2 \
+  --enable-image-description \
+  --write-to-disk \
+  --return-images path \
+  --output-dir data/test/output/pdf
+```
+
+#### ✅ CLI Options
+
+Run `llm_parse --help` to see all available options:
+
+```bash
+usage: llm_parse FILE [--start-page N] [--end-page N]
+                      [--enable-image-description] [--write-to-disk]
+                      [--return-images {path,base64}]
+                      [--output-dir DIR] [--denormalize-images]
+                      [--question TEXT] [--password PWD] [--postprocess]
+```
+
+This mode is ideal for scripting or integrating into data pipelines.
 
 ### 📁 Prompt Configuration
 
