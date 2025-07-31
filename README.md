@@ -120,7 +120,6 @@ llm_parse -f data/test/input/pdf/sample.pdf \
   -r path \
   -o data/test/output/pdf \
   -d \
-  -q "What is the main idea on this page?" \
   --postprocess \
 ```
 
