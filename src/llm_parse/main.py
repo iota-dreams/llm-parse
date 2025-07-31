@@ -1,16 +1,18 @@
 import os
 import sys
+from typing import Optional
 
 from llm_parse.models import LLMConfig, LLMParse, TableHandler
 from llm_parse.parser import process_pdf
-from llm_parse.utils import get_logger, load_config
+from llm_parse.utils import get_logger, load_config_with_fallback
 
 from .cli import parse_args
 
 logger = get_logger("LLM_parser")
 
 
-def main():
+def main(config_path: Optional[str] = None):
+
     # Decide based on CLI args whether to use defaults
     cli_enabled = len(sys.argv) > 1  # True if CLI arguments are passed
     # Set Gemini API key
@@ -32,6 +34,7 @@ def main():
     elif cli_enabled:
         logger.info("Running in CLI mode (arguments detected).")
         args = parse_args()
+        config_path = args.config_path
         example_pdf = args.file
         start_page = args.start_page
         end_page = args.end_page
@@ -45,7 +48,10 @@ def main():
         apply_document_postprocessing = args.postprocess
 
     # Load prompt configs
-    parser_cfg = load_config("configs/prompts.yaml").parser
+    config = load_config_with_fallback(config_path)
+    parser_cfg = config.parser
+    image_cfg = config.image_description
+
     parse_config = LLMConfig(
         provider=parser_cfg.provider,
         model_name=parser_cfg.model_name,
@@ -53,7 +59,6 @@ def main():
         prompt=parser_cfg.prompt,
     )
 
-    image_cfg = load_config("configs/prompts.yaml").image_description
     image_description_config = LLMConfig(
         provider=image_cfg.provider,
         model_name=image_cfg.model_name,
@@ -83,4 +88,5 @@ def main():
 
 
 if __name__ == "__main__":
-    parsed_pdf = main()
+    config_path = None
+    parsed_pdf = main(config_path=config_path)

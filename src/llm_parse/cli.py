@@ -8,6 +8,12 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Parse PDF using LLM-based pipeline.")
     parser.add_argument("-f", "--file", type=str, help="Path to input PDF file")
     parser.add_argument(
+        "--config-path",
+        type=str,
+        default=None,
+        help="Path to YAML config file (defaults to built-in config if not provided)",
+    )
+    parser.add_argument(
         "-s", "--start-page", type=int, help="Start page number (1-based)"
     )
     parser.add_argument(

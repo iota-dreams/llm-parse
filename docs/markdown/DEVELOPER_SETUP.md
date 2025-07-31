@@ -84,10 +84,11 @@ Be sure to:
 Example entry in `configs/prompts.yaml`:
 
 ```yaml
-google_genai:
-  gemini-1.5-pro-latest:
-    parse:
-      prompt_template: |
-        You are an expert at reading scanned PDFs...
-      temperature: 0.2
+image_description:
+  provider: google_genai
+  model_name: gemini-2.0-flash-001
+  temperature: 0.3
+  safety_settings:
+  prompt: |
+	You are an expert in ...
 ```

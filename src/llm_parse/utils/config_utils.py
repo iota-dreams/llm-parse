@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Optional
 
 import yaml
 
@@ -32,13 +33,38 @@ class DotDict(dict):
         return value
 
 
+def get_default_config_path() -> Path:
+    """
+    Returns the path to the default bundled config file (configs/prompts.yaml).
+    """
+    # ../../.. from this file → project root
+    return Path(__file__).resolve().parents[3] / "configs" / "prompts.yaml"
+
+
+def load_config_with_fallback(custom_path: Optional[str] = None, dotify: bool = True):
+    """
+    Loads user-provided config if given, otherwise loads the default prompts.yaml.
+
+    Parameters:
+        custom_path (str, optional): User-supplied config path.
+        dotify (bool): Whether to return a DotDict.
+
+    Returns:
+        DotDict or dict
+    """
+    path = Path(custom_path).expanduser() if custom_path else get_default_config_path()
+    return load_config(path, dotify=dotify)
+
+
 def load_config(file_path, dotify=True):
     """
     Loads a YAML file and optionally converts it into a DotDict.
 
     Parameters:
-        file_path (str): Path to the YAML file. Can be relative, absolute, or include ~.
-        dotify (bool): Whether to return a DotDict for dot notation access.
+        file_path (str):
+            Path to the YAML file. Can be relative, absolute, or include ~.
+        dotify (bool):
+            Whether to return a DotDict for dot notation access.
 
     Returns:
         dict or DotDict: Parsed YAML content.

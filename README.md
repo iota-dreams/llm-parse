@@ -120,8 +120,13 @@ llm_parse -f data/test/input/pdf/sample.pdf \
   -o data/test/output/pdf \
   -d \
   -q "What is the main idea on this page?" \
-  --postprocess
+  --postprocess \
+  --config-path configs/prompts.yaml
 ```
+
+> 🔧 `--config-path` is optional. If not provided, it uses the default bundled config shipped with the package.
+
+---
 
 #### ✅ CLI Options
 
@@ -132,6 +137,7 @@ usage: llm_parse [-f FILE] [-s START_PAGE] [-e END_PAGE]
                  [-i] [-w] [-r {path,base64,none}]
                  [-o OUTPUT_DIR] [-d]
                  [-q QUESTION] [-p PASSWORD] [--postprocess]
+                 [--config-path CONFIG_PATH]
 
 options:
   -f, --file                  Path to input PDF file
@@ -145,22 +151,33 @@ options:
   -q, --question              User question for LLM to answer per page
   -p, --password              Password for encrypted PDFs
       --postprocess           Enable document-level post-processing
+      --config-path           Path to custom YAML prompt config file
 ```
 
-This mode is ideal for scripting, automation, and integration into data pipelines.
+---
+
 ### 📁 Prompt Configuration
 
-Prompts are loaded from configs/prompts.yaml, like this:
-```yaml
-google_genai:
-  gemini-1.5-pro-latest:
-    parse:
-      prompt_template: |
-        You are an expert at reading scanned PDFs...
-      temperature: 0.2
+By default, prompts are loaded from a bundled YAML config shipped with the package.
+To use your own, pass it via `--config-path`:
+
+```bash
+llm_parse ... --config-path configs/my_custom_prompts.yaml
 ```
 
-You can customize the provider, model, temperature, and prompt templates per use case.
+The config should be a `yaml` and should follow the below schema:
+
+```yaml
+parser:
+  provider: google_genai
+  model_name: gemini-2.5-flash
+  temperature: 0
+  safety_settings:
+  prompt: |
+    You are an expert in ...
+```
+
+You can define multiple models and prompts under different providers.
 
 ## 📚 Documentation
 
