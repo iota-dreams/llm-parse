@@ -9,7 +9,6 @@
 ![CLI Support](https://img.shields.io/badge/CLI-Supported-blue?logo=gnu-bash&logoColor=white)
 ![Docker](https://img.shields.io/badge/docker-available-blue?logo=docker)
 
-
 ## 🗂️ Architecture
 
 ![Architecture](docs/images/arch.drawio.png)
@@ -102,6 +101,7 @@ curl -X POST http://localhost:8000/api/v1/parse-pdf \
 ```
 
 You'll receive a structured JSON response with extracted text, image descriptions, tables, and metadata.
+
 #### 📘 Alternative: Use Swagger UI
 
 Open http://localhost:8000/docs in your browser to explore all routes with Swagger.
@@ -112,6 +112,7 @@ You can also use `llm_parse` as a CLI tool after installing the package:
 
 ```bash
 llm_parse -f data/test/input/pdf/sample.pdf \
+  -c configs/prompts.yaml\
   -s 1 \
   -e 2 \
   -i \
@@ -121,7 +122,6 @@ llm_parse -f data/test/input/pdf/sample.pdf \
   -d \
   -q "What is the main idea on this page?" \
   --postprocess \
-  --config-path configs/prompts.yaml
 ```
 
 > 🔧 `--config-path` is optional. If not provided, it uses the default bundled config shipped with the package.
@@ -133,25 +133,33 @@ llm_parse -f data/test/input/pdf/sample.pdf \
 Run `llm_parse --help` to see all available options:
 
 ```text
-usage: llm_parse [-f FILE] [-s START_PAGE] [-e END_PAGE]
-                 [-i] [-w] [-r {path,base64,none}]
-                 [-o OUTPUT_DIR] [-d]
-                 [-q QUESTION] [-p PASSWORD] [--postprocess]
-                 [--config-path CONFIG_PATH]
+usage: llm_parse [-h] [-f FILE] [-c CONFIG_PATH] [-s START_PAGE] [-e END_PAGE] [-i] [-w] [-r {path,base64,none}] [-o OUTPUT_DIR] [-d] [-q QUESTION] [-p PASSWORD] [--postprocess]
+
+Parse PDF using LLM-based pipeline.
 
 options:
-  -f, --file                  Path to input PDF file
-  -s, --start-page            Start page number (1-based)
-  -e, --end-page              End page number (inclusive)
-  -i, --enable-image-description  Enable image captioning
-  -w, --write-to-disk         Write outputs to disk
-  -r, --return-images         Return image format: path | base64 | none
-  -o, --output-dir            Directory to save output files
-  -d, --denormalize-images    Apply denormalization to images
-  -q, --question              User question for LLM to answer per page
-  -p, --password              Password for encrypted PDFs
-      --postprocess           Enable document-level post-processing
-      --config-path           Path to custom YAML prompt config file
+  -h, --help            show this help message and exit
+  -f FILE, --file FILE  Path to input PDF file
+  -c CONFIG_PATH, --config-path CONFIG_PATH
+                        Path to YAML config file (defaults to built-in config if not provided)
+  -s START_PAGE, --start-page START_PAGE
+                        Start page number (1-based)
+  -e END_PAGE, --end-page END_PAGE
+                        End page number (inclusive)
+  -i, --enable-image-description
+                        Enable image captioning
+  -w, --write-to-disk   Write outputs to disk
+  -r {path,base64,none}, --return-images {path,base64,none}
+                        Return image format
+  -o OUTPUT_DIR, --output-dir OUTPUT_DIR
+                        Directory to save output files
+  -d, --denormalize-images
+                        Apply denormalization to images
+  -q QUESTION, --question QUESTION
+                        User question for LLM to answer per page
+  -p PASSWORD, --password PASSWORD
+                        Password for encrypted PDFs
+  --postprocess         Enable document-level post-processing
 ```
 
 ---

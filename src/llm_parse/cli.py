@@ -8,6 +8,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Parse PDF using LLM-based pipeline.")
     parser.add_argument("-f", "--file", type=str, help="Path to input PDF file")
     parser.add_argument(
+        "-c",
         "--config-path",
         type=str,
         default=None,
