@@ -1,7 +1,12 @@
+import os
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 
 import yaml
+
+from .logger import get_logger
+
+logger = get_logger(__name__)
 
 
 class DotDict(dict):
@@ -35,25 +40,67 @@ class DotDict(dict):
 
 def get_default_config_path() -> Path:
     """
-    Returns the path to the default bundled config file (configs/prompts.yaml).
+    Resolves the default bundled prompts.yaml file.
+    Works both in development and after pip install.
     """
-    # ../../.. from this file → project root
-    return Path(__file__).resolve().parents[3] / "configs" / "prompts.yaml"
+    # First: try relative to the installed package (e.g., site-packages)
+    installed_path = Path(__file__).resolve().parents[2] / "configs" / "prompts.yaml"
+    if installed_path.exists():
+        return installed_path
+
+    # Fallback: try project root (during development)
+    dev_path = Path(__file__).resolve().parents[3] / "configs" / "prompts.yaml"
+    if dev_path.exists():
+        return dev_path
+
+    raise FileNotFoundError(
+        "Could not find bundled prompts.yaml in expected locations."
+    )
 
 
-def load_config_with_fallback(custom_path: Optional[str] = None, dotify: bool = True):
+def load_config_with_fallback(
+    custom_path: Optional[Union[str, Path]] = None, dotify: bool = True
+) -> DotDict:
     """
-    Loads user-provided config if given, otherwise loads the default prompts.yaml.
+    Load configuration from YAML file using the following fallback order:
+    1. `custom_path` argument (explicit override)
+    2. `PROMPT_CONFIG_PATH` environment variable
+    3. `CONFIG_ROOT` environment variable + 'prompts.yaml'
+    4. Bundled fallback config in `configs/prompts.yaml`
 
-    Parameters:
-        custom_path (str, optional): User-supplied config path.
-        dotify (bool): Whether to return a DotDict.
+    Args:
+        custom_path (Optional[Union[str, Path]]):
+            Direct override for config file location.
+        dotify (bool):
+            Whether to return result as a DotDict for attribute-style access.
 
     Returns:
-        DotDict or dict
+        DotDict or dict: Parsed configuration content.
+
+    Raises:
+        FileNotFoundError: If the resolved config file path doesn't exist.
+        yaml.YAMLError: If the YAML content is malformed.
     """
-    path = Path(custom_path).expanduser() if custom_path else get_default_config_path()
-    return load_config(path, dotify=dotify)
+    if custom_path is not None:
+        resolved_path = Path(custom_path).expanduser()
+        source = "custom_path"
+
+    else:
+        env_prompt_path = os.getenv("PROMPT_CONFIG_PATH")
+        if env_prompt_path is not None:
+            resolved_path = Path(env_prompt_path).expanduser()
+            source = "PROMPT_CONFIG_PATH"
+        else:
+            config_root = os.getenv("CONFIG_ROOT")
+            if config_root is not None:
+                resolved_path = Path(config_root).expanduser() / "prompts.yaml"
+                source = "CONFIG_ROOT"
+            else:
+                resolved_path = get_default_config_path()
+                source = "default bundled config"
+
+    logger.info(f"🔧 Loading prompt config from ({source}): {resolved_path}")
+    return load_config(resolved_path, dotify=dotify)
 
 
 def load_config(file_path, dotify=True):

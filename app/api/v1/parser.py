@@ -14,7 +14,7 @@ from llm_parse.models import (
     TableHandler,
 )
 from llm_parse.parser import process_pdf
-from llm_parse.utils import get_logger, load_config
+from llm_parse.utils import get_logger, load_config_with_fallback
 
 router = APIRouter()
 logger = get_logger("LLM_API")
@@ -88,7 +88,8 @@ async def parse_pdf_endpoint(
         logger.info(f"📦 Saved file to temporary path: {temp_path}")
 
         # Load YAML config for parser and image description models
-        prompt_config = load_config("configs/prompts.yaml")
+        custom_config_path = os.getenv("PROMPT_CONFIG_PATH")
+        prompt_config = load_config_with_fallback(custom_config_path)
         parser_config = LLMConfig(**dict(prompt_config.parser))
         image_config = LLMConfig(**dict(prompt_config.image_description))
 
@@ -143,29 +144,35 @@ async def parse_pdf_from_json(request: PDFParseRequest):
     are missing.
     """
     try:
+        # Global config path override (e.g., set in Docker env or deployment)
+        config_path = os.getenv("PROMPT_CONFIG_PATH")
         prompt_config = None
 
-        # Use request.parser_config if given, else fallback
+        # --- PARSER CONFIG ---
         if request.parser_config is not None:
             parser_config = request.parser_config
         else:
             if prompt_config is None:
-                prompt_config = load_config("configs/prompts.yaml")
+                prompt_config = load_config_with_fallback(config_path)
             parser_config = LLMConfig(**prompt_config.parser.model_dump())
 
-        # Use image_description_config only if enabled
+        # --- IMAGE DESCRIPTION CONFIG ---
         if request.enable_image_description:
             if request.image_description_config is not None:
                 image_description_config = request.image_description_config
             else:
                 if prompt_config is None:
-                    prompt_config = load_config("configs/prompts.yaml")
+                    prompt_config = load_config_with_fallback(config_path)
                 image_description_config = LLMConfig(
                     **prompt_config.image_description.model_dump()
                 )
         else:
             image_description_config = None
-            logger.info(f"Parsing file: {request.file_path}")
+
+        logger.info(f"Parsing file: {request.file_path}")
+        logger.info(
+            f"📄 Loaded prompt config from: {config_path or 'default bundled config'}"
+        )
 
         result = process_pdf(
             file_path=request.file_path,

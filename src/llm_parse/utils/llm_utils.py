@@ -11,7 +11,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from PIL import Image as PILImage
 
 from ..models import LLMConfig
-from .config_utils import load_config
+from .config_utils import load_config_with_fallback
 from .logger import get_logger
 
 logger = get_logger(__name__)
@@ -38,7 +38,9 @@ def supports_multimodal(provider: str, model_name: Optional[str] = None) -> bool
         raise FileNotFoundError(f"Multimodal config not found: {config_path}")
 
     logger.info(f"Loading multimodal config from: {config_path}")
-    MULTIMODAL_MODELS = load_config(file_path=config_path, dotify=True)
+    MULTIMODAL_MODELS = load_config_with_fallback(
+        custom_path=str(config_path), dotify=True
+    )
     supported_models = MULTIMODAL_MODELS.get(provider, [])
     return any(substr in model_name for substr in supported_models)
 

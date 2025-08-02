@@ -171,3 +171,5 @@ docker-volume/
 **/data
 **/logo
 **/api_output
+
+**logs

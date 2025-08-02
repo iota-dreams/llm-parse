@@ -33,7 +33,7 @@ Parse a PDF using an LLM by loading your model configuration and prompt from `co
 import os
 from llm_parse.models import LLMConfig, LLMParse, TableHandler
 from llm_parse.parser import process_pdf
-from llm_parse.utils import load_config
+from llm_parse.utils import load_config_with_fallback
 
 # 🔐 Set your API keys as environment variables
 # Refer to LangChain's setup guide for different providers:
@@ -43,36 +43,54 @@ from llm_parse.utils import load_config
 # os.environ["OPENAI_API_KEY"] = "your-openai-api-key"
 os.environ["GOOGLE_API_KEY"] = "your-gemini-api-key"
 
+example_pdf = "data/test/input/pdf/attention_is_all_you_need.pdf"
+start_page = 3
+end_page = 6
+enable_image_description = True
+write_to_disk = True
+return_images = "path"
+output_dir = "data/test/output/pdf"
+denormalize_images = True
+user_question = None
+password = ""
+apply_document_postprocessing = True
+
 # Load parsing prompt and model config from YAML
-raw_config = load_config("configs/prompts.yaml").parser
-llm_config = LLMConfig(
-    provider=raw_config.provider,
-    model_name=raw_config.model_name,
-    temperature=raw_config.get("temperature", 0.7),
-    prompt=raw_config.prompt,
+config = load_config_with_fallback(config_path)
+parser_cfg = config.parser
+image_cfg = config.image_description
+
+parse_config = LLMConfig(
+    provider=parser_cfg.provider,
+    model_name=parser_cfg.model_name,
+    temperature=parser_cfg.get("temperature", 0),
+    prompt=parser_cfg.prompt,
 )
 
-# (Optional) Load image description prompt config if using image parsing
-image_config_raw = load_config("configs/prompts.yaml").image_description
 image_description_config = LLMConfig(
-    provider=image_config_raw.provider,
-    model_name=image_config_raw.model_name,
-    temperature=image_config_raw.get("temperature", 0.7),
-    prompt=image_config_raw.prompt,
+    provider=image_cfg.provider,
+    model_name=image_cfg.model_name,
+    temperature=image_cfg.get("temperature", 0),
+    prompt=image_cfg.prompt,
 )
 
-# Parse the PDF using process_pdf()
-results = process_pdf(
-    file_path="data/test/input/pdf/sample.pdf",
-    parser_config=llm_config,
+# Process the PDF
+parsed_pdf = process_pdf(
+    file_path=example_pdf,
+    parser_config=parse_config,
+    enable_image_description=enable_image_description,
     image_description_config=image_description_config,
-    start_page=1,
-    end_page=2,
-    enable_image_description=True,
+    start_page=start_page,
+    end_page=end_page,
+    response_model=LLMParse,
     table_handler=TableHandler.html,
-    write_to_disk=True,
-    output_dir="data/test/output/pdf",
-    return_images="path",  # Can be "path", "base64", or None
+    denormalize_images=denormalize_images,
+    user_question=user_question,
+    password=password,
+    write_to_disk=write_to_disk,
+    output_dir=output_dir,
+    return_images=return_images,
+    apply_document_postprocessing=apply_document_postprocessing,
 )
 
 # Print the text from the first parsed page
