@@ -1,1 +1,2 @@
-recursive-include llm_parse/configs *.yaml
+recursive-include configs/*.yaml
+include configs/prompts.yaml

@@ -129,7 +129,7 @@ Open http://localhost:8000/docs in your browser to explore all routes with Swagg
 You can also use `llm_parse` as a CLI tool after installing the package:
 
 ```bash
-llm_parse -f data/test/input/pdf/sample.pdf \
+llm_parse -f data/test/input/pdf/example.pdf \
   -c configs/prompts.yaml\
   -s 1 \
   -e 2 \

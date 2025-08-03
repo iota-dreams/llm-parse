@@ -1,7 +1,5 @@
 import base64
 import io
-import os
-from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
 from langchain.chat_models import init_chat_model
@@ -17,31 +15,54 @@ from .logger import get_logger
 logger = get_logger(__name__)
 
 
-def supports_multimodal(provider: str, model_name: Optional[str] = None) -> bool:
+def supports_multimodal(
+    provider: str,
+    model_name: Optional[str] = None,
+) -> bool:
     """
-    Check if the given provider and model support multimodal input,
-    based on YAML-defined known capabilities.
+    Determine whether a given provider and model support multimodal input.
 
-    Uses CONFIG_ROOT environment variable to locate YAML files.
+    This function checks against a known list of supported models defined in
+    `multimodal_models.yaml`. The location of the config file is resolved
+    using environment variables or defaults.
+
+    Parameters
+    ----------
+    provider : str
+        The name of the model provider (e.g., "openai", "google").
+    model_name : str, optional
+        The specific model name to check support for. If None, returns False.
+
+    Returns
+    -------
+    bool
+        True if the provider and model support multimodal input, False otherwise.
+
+    Raises
+    ------
+    FileNotFoundError
+        If the config file `multimodal_models.yaml` cannot be found.
     """
     provider = provider.lower()
     model_name = (model_name or "").lower()
+    config_filename = "multimodal_models.yaml"
 
-    # Resolve config root from environment or fallback to ./configs
-    env_root = os.getenv("CONFIG_ROOT")
-    default_root = Path(__file__).resolve().parents[3] / "configs"
-    config_root = Path(env_root) if env_root else default_root
+    try:
+        config = load_config_with_fallback(
+            filename=config_filename,
+            dotify=True,
+        )
+    except FileNotFoundError as e:
+        raise FileNotFoundError(
+            f"Multimodal config not found: {config_filename}"
+        ) from e
 
-    config_path = config_root / "multimodal_models.yaml"
-
-    if not config_path.exists():
-        raise FileNotFoundError(f"Multimodal config not found: {config_path}")
-
-    logger.info(f"Loading multimodal config from: {config_path}")
-    MULTIMODAL_MODELS = load_config_with_fallback(
-        custom_path=str(config_path), dotify=True
+    logger.info(
+        f"🔍 Checking multimodal support for provider '{provider}',"
+        f"model '{model_name}'"
     )
-    supported_models = MULTIMODAL_MODELS.get(provider, [])
+
+    supported_models = config.get(provider, [])
     return any(substr in model_name for substr in supported_models)
 
 

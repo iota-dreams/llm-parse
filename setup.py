@@ -33,15 +33,18 @@ extras = {
 setup(
     name="llmparse",
     version=read_version(),
-    package_dir={"": "src"},
-    packages=find_packages(where="src"),
+    packages=find_packages(where="src") + ["llm_parse.configs"],
+    package_dir={
+        "": "src",
+        "llm_parse.configs": "configs",
+    },
+    include_package_data=True,
     install_requires=read_requirements(),
     extras_require=extras,
     description="An open source package for parsing documents using an LLM",
     author="Srikanth Sripada",
     author_email="srikanth6991@gmail.com",
     url="https://github.com/iota-dreams/llm-parse",
-    include_package_data=True,
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",

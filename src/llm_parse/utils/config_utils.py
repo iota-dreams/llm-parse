@@ -1,4 +1,5 @@
 import os
+from importlib.resources import as_file, files
 from pathlib import Path
 from typing import Optional, Union
 
@@ -38,68 +39,88 @@ class DotDict(dict):
         return value
 
 
-def get_default_config_path() -> Path:
+def get_default_config_path(filename: str = "prompts.yaml") -> Path:
     """
-    Resolves the default bundled prompts.yaml file.
-    Works both in development and after pip install.
+    Resolves the default bundled config YAML file by name,
+    compatible with both dev and installed environments.
+
+    Parameters:
+        filename (str): The name of the config file (e.g. prompts.yaml)
+
+    Returns:
+        Path: Resolved path to the bundled config file.
     """
-    # First: try relative to the installed package (e.g., site-packages)
-    installed_path = Path(__file__).resolve().parents[2] / "configs" / "prompts.yaml"
-    if installed_path.exists():
-        return installed_path
-
-    # Fallback: try project root (during development)
-    dev_path = Path(__file__).resolve().parents[3] / "configs" / "prompts.yaml"
-    if dev_path.exists():
-        return dev_path
-
-    raise FileNotFoundError(
-        "Could not find bundled prompts.yaml in expected locations."
-    )
+    resource = files("llm_parse.configs").joinpath(filename)
+    with as_file(resource) as actual_path:
+        return actual_path
 
 
 def load_config_with_fallback(
-    custom_path: Optional[Union[str, Path]] = None, dotify: bool = True
+    custom_path: Optional[Union[str, Path]] = None,
+    *,
+    dotify: bool = True,
+    filename: str = "prompts.yaml",
 ) -> DotDict:
     """
-    Load configuration from YAML file using the following fallback order:
+    Load a configuration YAML file using a prioritized fallback strategy.
+
+    The resolution order is:
     1. `custom_path` argument (explicit override)
     2. `PROMPT_CONFIG_PATH` environment variable
-    3. `CONFIG_ROOT` environment variable + 'prompts.yaml'
-    4. Bundled fallback config in `configs/prompts.yaml`
+    3. `CONFIG_ROOT` environment variable + `filename`
+    4. Bundled fallback config in `llm_parse/configs/{filename}`
 
-    Args:
-        custom_path (Optional[Union[str, Path]]):
-            Direct override for config file location.
-        dotify (bool):
-            Whether to return result as a DotDict for attribute-style access.
+    Parameters
+    ----------
+    custom_path : str or Path, optional
+        Direct override path for the config file.
+    dotify : bool, default=True
+        Whether to return the result as a DotDict for attribute-style access.
+    filename : str, default="prompts.yaml"
+        Name of the config file to load.
 
-    Returns:
-        DotDict or dict: Parsed configuration content.
+    Returns
+    -------
+    DotDict or dict
+        Parsed configuration content from the resolved YAML file.
 
-    Raises:
-        FileNotFoundError: If the resolved config file path doesn't exist.
-        yaml.YAMLError: If the YAML content is malformed.
+    Raises
+    ------
+    FileNotFoundError
+        If the resolved config file path doesn't exist.
+    yaml.YAMLError
+        If the YAML file is malformed.
+    ValueError
+        If required environment variables are set but empty.
     """
     if custom_path is not None:
         resolved_path = Path(custom_path).expanduser()
         source = "custom_path"
 
-    else:
-        env_prompt_path = os.getenv("PROMPT_CONFIG_PATH")
-        if env_prompt_path is not None:
-            resolved_path = Path(env_prompt_path).expanduser()
-            source = "PROMPT_CONFIG_PATH"
-        else:
-            config_root = os.getenv("CONFIG_ROOT")
-            if config_root is not None:
-                resolved_path = Path(config_root).expanduser() / "prompts.yaml"
-                source = "CONFIG_ROOT"
-            else:
-                resolved_path = get_default_config_path()
-                source = "default bundled config"
+    elif os.getenv("PROMPT_CONFIG_PATH"):
+        prompt_config_path = os.getenv("PROMPT_CONFIG_PATH")
+        if not prompt_config_path:
+            raise ValueError("PROMPT_CONFIG_PATH environment variable is not set.")
+        resolved_path = Path(prompt_config_path).expanduser()
+        source = "PROMPT_CONFIG_PATH"
 
-    logger.info(f"🔧 Loading prompt config from ({source}): {resolved_path}")
+    elif os.getenv("CONFIG_ROOT"):
+        config_root = os.getenv("CONFIG_ROOT")
+        if not config_root:
+            raise ValueError("CONFIG_ROOT environment variable is not set.")
+        resolved_path = Path(config_root).expanduser() / filename
+        source = "CONFIG_ROOT"
+
+    else:
+        # Use importlib.resources for bundled config
+        resource = files("llm_parse.configs").joinpath(filename)
+        source = "default bundled config"
+        logger.info(f"🔧 Loading config '{filename}' from ({source})")
+        with as_file(resource) as actual_path:
+            logger.info(f"Loading config from {actual_path}")
+            return load_config(actual_path, dotify=dotify)
+
+    logger.info(f"🔧 Loading config '{filename}' from ({source}): {resolved_path}")
     return load_config(resolved_path, dotify=dotify)
 
 

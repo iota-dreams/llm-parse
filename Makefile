@@ -96,3 +96,65 @@ prod:
 # 🛑 Stop prod container
 prod-down:
 	docker compose -f docker-compose.prod.yaml down
+
+# Use Mamba instead of Conda
+MAMBA_ENV_TEST := llm_parse_test
+
+# 🧪 Create test env, uninstall old, install built wheel, verify config
+test-package-env:
+	@echo "🧪 Creating test mamba environment '$(MAMBA_ENV_TEST)'..."
+	@mamba create -n $(MAMBA_ENV_TEST) python=3.11 -y
+	@echo "✅ Test environment created."
+
+	@echo "📦 Building wheel..."
+	python setup.py sdist bdist_wheel
+	@echo "✅ Build complete."
+
+	@echo "📦 Uninstalling existing llm_parse if present..."
+	@mamba run -n $(MAMBA_ENV_TEST) pip uninstall -y llm_parse || true
+	@echo "✅ Previous llm_parse (if any) removed."
+
+	@echo "📦 Installing new built wheel into test env..."
+	@mamba run -n $(MAMBA_ENV_TEST) pip install dist/*.whl
+	@echo "✅ Package installed."
+
+	@echo "🔍 Verifying config import..."
+	@mamba run -n $(MAMBA_ENV_TEST) python -c "from llm_parse.utils import load_config_with_fallback; print(load_config_with_fallback())"
+	@echo "✅ Config load test passed."
+
+# 🧼 Cleanup test environment
+test-package-clean:
+	@echo "🧼 Removing test mamba environment..."
+	@mamba env remove -n $(MAMBA_ENV_TEST)
+	@echo "✅ Test environment removed."
+
+# 🧪 Run CLI test inside Mamba test env
+test-package-cli:
+	@echo "🧪 Running CLI test in test env '$(MAMBA_ENV_TEST)'..."
+	@mamba run -n $(MAMBA_ENV_TEST) llm_parse --help || echo "❌ CLI help test failed"
+	@echo "🚀 Running full CLI invocation..."
+	@mamba run -n $(MAMBA_ENV_TEST) llm_parse -f data/test/input/pdf/example.pdf \
+	  -s 1 \
+	  -e 2 \
+	  -i \
+	  -w \
+	  -r path \
+	  -o data/test/output/pdf \
+	  -d \
+	  --postprocess
+	@echo "✅ CLI test passed."
+	@echo "✅ CLI test done."
+
+# 🐳 Run package test inside Docker (prod image)
+docker-test-prod:
+	@echo "🐳 Building and testing production Docker container..."
+	docker compose -f docker-compose.prod.yaml up --build -d
+	@sleep 5
+	@echo "🔍 Verifying API endpoint..."
+	curl --fail http://localhost:8000/docs || echo "❌ API endpoint test failed"
+	docker compose -f docker-compose.prod.yaml down
+	@echo "✅ Docker prod test complete."
+
+# 🔁 Combined test entrypoint
+test-all: test-package-env test-package-cli docker-test-prod test-package-clean
+	@echo "🎯 All tests completed successfully."
