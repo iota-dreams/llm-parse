@@ -88,7 +88,7 @@ async def parse_pdf_endpoint(
         logger.info(f"📦 Saved file to temporary path: {temp_path}")
 
         # Load YAML config for parser and image description models
-        custom_config_path = os.getenv("PROMPT_CONFIG_PATH")
+        custom_config_path = os.getenv("PROMPT_CONFIG_PATH", "configs/prompts.yaml")
         prompt_config = load_config_with_fallback(custom_config_path)
         parser_config = LLMConfig(**dict(prompt_config.parser))
         image_config = LLMConfig(**dict(prompt_config.image_description))
@@ -145,7 +145,7 @@ async def parse_pdf_from_json(request: PDFParseRequest):
     """
     try:
         # Global config path override (e.g., set in Docker env or deployment)
-        config_path = os.getenv("PROMPT_CONFIG_PATH")
+        config_path = os.getenv("PROMPT_CONFIG_PATH", "configs/prompts.yaml")
         prompt_config = None
 
         # --- PARSER CONFIG ---

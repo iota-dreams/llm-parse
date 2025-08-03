@@ -10,17 +10,17 @@ services:
       - "8000:8000"
     volumes:
       - .:/app:cached
-      - /app/.venv
       - ./logs:/app/logs
     environment:
       PYTHONDONTWRITEBYTECODE: "1"
       PYTHONUNBUFFERED: "1"
-      CONFIG_ROOT: /app/configs
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+      CONFIG_ROOT: configs
+    env_file:
+      - .env
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/docs"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
       interval: 10s
       timeout: 5s
       retries: 3
     restart: unless-stopped
-    entrypoint: ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"]

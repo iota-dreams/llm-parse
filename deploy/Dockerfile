@@ -23,6 +23,9 @@ COPY deploy/ deploy/
 COPY app/ app/
 COPY configs/ configs/
 
+# Copy only the one test PDF
+COPY data/test/input/pdf/example.pdf /app/data/test/input/pdf/example.pdf
+
 # Copy setup and requirements files first for Docker caching
 COPY setup.py deploy/requirements.txt ./
 

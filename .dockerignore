@@ -87,6 +87,7 @@ docker-volume/
 # Project-specific
 **/test_dev.py
 **/data
+!data/test/input/pdf/example.pdf
 **/logo
 **/api_output
 

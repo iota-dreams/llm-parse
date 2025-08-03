@@ -1,7 +1,6 @@
 import os
 from importlib.resources import as_file, files
 from pathlib import Path
-from typing import Optional, Union
 
 import yaml
 
@@ -56,75 +55,56 @@ def get_default_config_path(filename: str = "prompts.yaml") -> Path:
 
 
 def load_config_with_fallback(
-    custom_path: Optional[Union[str, Path]] = None,
-    *,
-    dotify: bool = True,
-    filename: str = "prompts.yaml",
+    filename: str = "prompts.yaml", dotify: bool = True
 ) -> DotDict:
     """
-    Load a configuration YAML file using a prioritized fallback strategy.
+    Load config using one of the following strategies:
+    1. If CONFIG_ROOT env var is set, try that path.
+    2. Try importlib.resources from bundled package.
+    3. Fallback to relative path ("./configs/").
 
-    The resolution order is:
-    1. `custom_path` argument (explicit override)
-    2. `PROMPT_CONFIG_PATH` environment variable
-    3. `CONFIG_ROOT` environment variable + `filename`
-    4. Bundled fallback config in `llm_parse/configs/{filename}`
-
-    Parameters
-    ----------
-    custom_path : str or Path, optional
-        Direct override path for the config file.
-    dotify : bool, default=True
-        Whether to return the result as a DotDict for attribute-style access.
-    filename : str, default="prompts.yaml"
-        Name of the config file to load.
-
-    Returns
-    -------
-    DotDict or dict
-        Parsed configuration content from the resolved YAML file.
-
-    Raises
-    ------
-    FileNotFoundError
-        If the resolved config file path doesn't exist.
-    yaml.YAMLError
-        If the YAML file is malformed.
-    ValueError
-        If required environment variables are set but empty.
+    Raises:
+        FileNotFoundError: if config file is not found by any strategy.
     """
-    if custom_path is not None:
-        resolved_path = Path(custom_path).expanduser()
-        source = "custom_path"
-
-    elif os.getenv("PROMPT_CONFIG_PATH"):
-        prompt_config_path = os.getenv("PROMPT_CONFIG_PATH")
-        if not prompt_config_path:
-            raise ValueError("PROMPT_CONFIG_PATH environment variable is not set.")
-        resolved_path = Path(prompt_config_path).expanduser()
-        source = "PROMPT_CONFIG_PATH"
-
-    elif os.getenv("CONFIG_ROOT"):
-        config_root = os.getenv("CONFIG_ROOT")
-        if not config_root:
-            raise ValueError("CONFIG_ROOT environment variable is not set.")
+    log_prefix = "[load_config_with_fallback]"
+    # If user sets filename as None
+    if not filename:
+        filename = "prompts.yaml"
+    config_root = os.getenv("CONFIG_ROOT")
+    if config_root:
         resolved_path = Path(config_root).expanduser() / filename
-        source = "CONFIG_ROOT"
+        logger.info(f"{log_prefix} 🔍 Trying CONFIG_ROOT: {resolved_path}")
+        if resolved_path.exists():
+            logger.info(f"{log_prefix} ✅ Found config at CONFIG_ROOT: {resolved_path}")
+            return load_config(resolved_path, dotify=dotify)
+        else:
+            logger.warning(
+                f"{log_prefix} ❌ File not found at CONFIG_ROOT: {resolved_path}"
+            )
 
-    else:
-        # Use importlib.resources for bundled config
+    try:
         resource = files("llm_parse.configs").joinpath(filename)
-        source = "default bundled config"
-        logger.info(f"🔧 Loading config '{filename}' from ({source})")
+        logger.info(f"{log_prefix} 📦 Trying importlib.resources: {resource}")
         with as_file(resource) as actual_path:
-            logger.info(f"Loading config from {actual_path}")
+            logger.info(f"{log_prefix} ✅ Loaded from bundled path: {actual_path}")
             return load_config(actual_path, dotify=dotify)
+    except (ModuleNotFoundError, FileNotFoundError) as e:
+        logger.warning(f"{log_prefix} ⚠️ importlib.resources failed: {e}")
 
-    logger.info(f"🔧 Loading config '{filename}' from ({source}): {resolved_path}")
-    return load_config(resolved_path, dotify=dotify)
+    fallback_path = Path("configs") / filename
+    logger.warning(f"{log_prefix} ⚠️ Final fallback to relative path: {fallback_path}")
+    if fallback_path.exists():
+        logger.info(f"{log_prefix} ✅ Found at relative path: {fallback_path}")
+        return load_config(fallback_path, dotify=dotify)
+
+    error_msg = (
+        f"{log_prefix} ❌ Failed to load config from any known location: " f"{filename}"
+    )
+    logger.error(error_msg)
+    raise FileNotFoundError(error_msg)
 
 
-def load_config(file_path, dotify=True):
+def load_config(file_path, dotify=True) -> DotDict:
     """
     Loads a YAML file and optionally converts it into a DotDict.
 

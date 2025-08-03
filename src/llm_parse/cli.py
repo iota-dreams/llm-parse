@@ -15,26 +15,37 @@ def parse_args() -> argparse.Namespace:
         help="Path to YAML config file (defaults to built-in config if not provided)",
     )
     parser.add_argument(
-        "-s", "--start-page", type=int, help="Start page number (1-based)"
+        "-s",
+        "--start-page",
+        default=1,
+        type=int,
+        help="Start page number (1-based)",
     )
     parser.add_argument(
-        "-e", "--end-page", type=int, help="End page number (inclusive)"
+        "-e",
+        "--end-page",
+        default=None,
+        type=int,
+        help="End page number (inclusive)",
     )
     parser.add_argument(
         "-i",
         "--enable-image-description",
+        default=True,
         action="store_true",
         help="Enable image captioning",
     )
     parser.add_argument(
         "-w",
         "--write-to-disk",
+        default=True,
         action="store_true",
         help="Write outputs to disk",
     )
     parser.add_argument(
         "-r",
         "--return-images",
+        default="path",
         choices=["path", "base64", "none"],
         help="Return image format",
     )
@@ -44,20 +55,27 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "-d",
         "--denormalize-images",
+        default=True,
         action="store_true",
         help="Apply denormalization to images",
     )
     parser.add_argument(
         "-q",
         "--question",
+        default=None,
         type=str,
         help="User question for LLM to answer per page",
     )
     parser.add_argument(
-        "-p", "--password", type=str, help="Password for encrypted PDFs"
+        "-p",
+        "--password",
+        default=None,
+        type=str,
+        help="Password for encrypted PDFs",
     )
     parser.add_argument(
         "--postprocess",
+        default=True,
         action="store_true",
         help="Enable document-level post-processing",
     )

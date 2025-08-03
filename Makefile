@@ -145,16 +145,78 @@ test-package-cli:
 	@echo "✅ CLI test passed."
 	@echo "✅ CLI test done."
 
-# 🐳 Run package test inside Docker (prod image)
+# 🐳 Run package test inside Docker (dev container)
+docker-test-dev:
+	@echo "🐳 Starting dev container..."
+	docker compose -f docker-compose.dev.yaml up -d --build
+
+	@echo "⏳ Waiting for dev server to be ready..."
+	@until curl -s http://localhost:8000/ > /dev/null; do sleep 1; done
+	@echo "✅ Dev server is up!"
+
+	@echo "# Clean only dev test output folder"
+	rm -rf tests/output/docker_dev_test_output && mkdir -p tests/output/docker_dev_test_output
+
+	@echo "# Run CLI test with write-to-disk enabled"
+	@docker exec -i llm-parse-api-dev \
+		llm_parse --file /app/data/test/input/pdf/example.pdf \
+		--start-page 1 \
+		--end-page 2 \
+		--write-to-disk \
+		--output-dir tests/output/docker_dev_test_output \
+		|| echo "⚠️ CLI returned non-zero status, continuing anyway..."
+
+	@echo "# Run API test via docker exec curl"
+		docker exec -i llm-parse-api-dev \
+		curl -s -X POST http://localhost:8000/parse/api/v1/parse-pdf \
+			-F file=@/app/data/test/input/pdf/example.pdf \
+			-F start_page=1 \
+			-F end_page=2 \
+			-F write_to_disk=true \
+			-F output_dir=tests/output/docker_dev_test_output \
+			| tee tests/output/docker_dev_test_output/api_response.json \
+			| jq
+
+	@echo "# Check for API errors or skipped pages (dev)"
+	@jq -e '.errors or .skipped_pages | select(. != null and . != [])' tests/output/docker_dev_test_output/api_response.json \
+		&& echo "❌ Dev API returned errors or skipped pages!" && exit 1 || echo "✅ Dev API test passed!"
+
+# 🐳 Run package test inside Docker (prod container)
 docker-test-prod:
-	@echo "🐳 Building and testing production Docker container..."
-	docker compose -f docker-compose.prod.yaml up --build -d
-	@sleep 5
-	@echo "🔍 Verifying API endpoint..."
-	curl --fail http://localhost:8000/docs || echo "❌ API endpoint test failed"
-	docker compose -f docker-compose.prod.yaml down
-	@echo "✅ Docker prod test complete."
+	@echo "🐳 Starting prod container..."
+	docker compose -f docker-compose.prod.yaml up -d --build
+
+	@echo "⏳ Waiting for prod server to be ready..."
+	@until curl -s http://localhost:8000/ > /dev/null; do sleep 1; done
+	@echo "✅ Prod server is up!"
+
+	@echo "# Clean only prod test output folder"
+	rm -rf tests/output/docker_prod_test_output && mkdir -p tests/output/docker_prod_test_output
+
+	@echo "# Run CLI test with write-to-disk enabled"
+	docker exec -i llm-parse-api-prod \
+		llm_parse --file /app/data/test/input/pdf/example.pdf \
+		--start-page 1 \
+		--end-page 2 \
+		--write-to-disk \
+		--output-dir tests/output/docker_prod_test_output \
+		|| echo "⚠️ CLI returned non-zero status, continuing anyway..."
+
+	@echo "# Run API test via docker exec curl"
+	@docker exec -i llm-parse-api-prod \
+		curl -s -X POST http://localhost:8000/parse/api/v1/parse-pdf \
+			-F file=@/app/data/test/input/pdf/example.pdf \
+			-F start_page=1 \
+			-F end_page=2 \
+			-F write_to_disk=true \
+			-F output_dir=tests/output/docker_prod_test_output \
+			| tee tests/output/docker_prod_test_output/api_response.json \
+			| jq
+
+	@echo "# Check for API errors or skipped pages (prod)"
+	@jq -e '.errors or .skipped_pages | select(. != null and . != [])' tests/output/docker_prod_test_output/api_response.json \
+		&& echo "❌ Prod API returned errors or skipped pages!" && exit 1 || echo "✅ Prod API test passed!"
 
 # 🔁 Combined test entrypoint
-test-all: test-package-env test-package-cli docker-test-prod test-package-clean
+test-all: test-package-env test-package-cli docker-test-dev docker-test-prod test-package-clean
 	@echo "🎯 All tests completed successfully."

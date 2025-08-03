@@ -173,3 +173,5 @@ docker-volume/
 **/api_output
 
 **logs
+
+**/tests/output

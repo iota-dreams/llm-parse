@@ -13,11 +13,11 @@ services:
     environment:
       PYTHONDONTWRITEBYTECODE: "1"
       PYTHONUNBUFFERED: "1"
-      CONFIG_ROOT: /app/configs
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+      CONFIG_ROOT: configs
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2
     restart: always
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/docs"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
       interval: 10s
       timeout: 5s
       retries: 3

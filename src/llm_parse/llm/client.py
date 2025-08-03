@@ -89,7 +89,7 @@ def call_llm(
             **prompt_context,
         )
 
-        logger.info(f"Calling model: {config.model_name}")
+        logger.info(f"Calling model: {config.model_name} from {config.provider}")
 
         if response_model:
             structured_llm = llm.with_structured_output(
