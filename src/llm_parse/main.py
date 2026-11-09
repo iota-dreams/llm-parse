@@ -1,16 +1,24 @@
 import os
 import sys
-from typing import Optional
+from typing import List, Optional, Union
 
 from llm_parse.cli import parse_args
-from llm_parse.models import LLMConfig, LLMParse, TableHandler
+from llm_parse.models import (
+    LLMConfig,
+    LLMParse,
+    LLMParseDocumentResponse,
+    LLMParseResult,
+    TableHandler,
+)
 from llm_parse.parser import process_pdf
 from llm_parse.utils import get_logger, load_config_with_fallback
 
 logger = get_logger("LLM_parser")
 
 
-def main(config_path: Optional[str] = None):
+def main(
+    config_path: Optional[str] = None,
+) -> Union[List[LLMParseResult], LLMParseDocumentResponse]:
 
     # Decide based on CLI args whether to use defaults
     cli_enabled = len(sys.argv) > 1  # True if CLI arguments are passed
