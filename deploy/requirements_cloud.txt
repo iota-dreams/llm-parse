@@ -1,0 +1,4 @@
+google-cloud-logging==3.12.1
+watchtower==3.4.0
+opencensus-ext-azure==1.1.15
+sentry-sdk==2.30.0

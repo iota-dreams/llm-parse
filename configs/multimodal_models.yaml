@@ -1,0 +1,19 @@
+openai:
+  - gpt-4o
+  - gpt-4-vision
+
+google_genai:
+  - gemini
+
+google_vertexai:
+  - gemini
+  - multimodal
+
+anthropic:
+  - claude-3
+
+mistral:
+  - mistral-vl
+
+cohere:
+  - command-r+

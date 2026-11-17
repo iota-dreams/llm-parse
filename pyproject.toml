@@ -1,0 +1,22 @@
+[tool.black]
+line-length = 88
+target-version = ["py310"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+fix = true  # Auto-fix issues like formatting & import sorting
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B"]  # I = isort-compatible rules
+ignore = []
+
+[tool.ruff.lint.per-file-ignores]
+"**/__init__.py" = ["F401"]  # Allow unused imports in __init__.py
+
+[tool.ruff.lint.isort]
+known-first-party = ["app", "llm_parse"]
+
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"

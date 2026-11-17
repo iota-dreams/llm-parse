@@ -1,0 +1,177 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Virtual environments
+.env
+.venv/
+.envrc
+.direnv/
+venv/
+env/
+ENV/
+pip-wheel-metadata/
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# mypy / Pyre / type checker
+.mypy_cache/
+.dmypy.json
+.pyre/
+
+# PyCharm / editors
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# VSCode user-specific configs
+.vscode/launch.json
+.vscode/tasks.json
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# dotenv
+*.env
+*.env.*
+
+# local bin/ folders
+**/bin
+
+# Logs
+*.log
+
+# Mac / Linux / Windows system files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Optional: ignore compiled translations
+*.mo
+
+# Optional: ignore profiling files
+.prof
+
+# Optional: ignore REPL history
+.python_history
+
+# Optional: ignore test outputs
+.pytest_cache/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+test-results/
+
+# mypy / Pyre / Ruff / type checker
+.mypy_cache/
+.dmypy.json
+.pyre/
+.ruff_cache/
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+*.whl
+*.manifest
+*.spec
+
+# Logs and temp files
+*.log
+*.tmp
+*.temp
+
+*.conda
+*.lock
+
+# Poetry
+poetry.lock
+
+# Docker
+*.tar
+*.tar.gz
+*.img
+*.container
+docker-compose.override.yml
+.env.docker
+docker-volume/
+
+# Miscellaneous
+.python_history
+*.mo
+*.pot
+*.sqlite3
+
+**/test_dev.py
+**/data
+**/logo
+**/api_output
+
+**logs
+
+**/tests/output

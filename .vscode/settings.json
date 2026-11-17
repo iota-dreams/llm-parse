@@ -1,0 +1,32 @@
+{
+    // Python analysis
+    "python.analysis.typeCheckingMode": "basic",
+    "python.analysis.autoSearchPaths": true,
+    "python.analysis.useLibraryCodeForTypes": true,
+    "python.terminal.activateEnvironment": true,
+    // Black formatter config
+    "black-formatter.args": [
+        "--line-length=80"
+    ],
+    // Format + fix imports on save
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+        "source.organizeImports": "always",
+        "source.fixAll": "always",
+        "source.fixAll.ruff": "always"
+    },
+    // Python-specific editor settings
+    "[python]": {
+        "editor.defaultFormatter": "ms-python.black-formatter",
+        "editor.formatOnType": true,
+        "editor.detectIndentation": false,
+        "editor.tabSize": 4,
+        "files.trimTrailingWhitespace": true
+    },
+    // Jupyter-specific settings
+    "[jupyter]": {
+        "editor.defaultFormatter": "ms-python.black-formatter",
+        "editor.formatOnType": true,
+        "editor.tabSize": 4
+    },
+}
